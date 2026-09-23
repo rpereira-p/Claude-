@@ -57,7 +57,7 @@ const COINS_PER_BLOCK = 10;    // moedas distribuídas...
 const PIPES_PER_BLOCK = 30;    // ...a cada 30 canos
 const COIN_R = 7;
 
-const STATE = { SPLASH: 0, READY: 1, PLAY: 2, DEAD: 3, SHOP: 4 };
+const STATE = { SPLASH: 0, READY: 1, PLAY: 2, DEAD: 3, SHOP: 4, RANK: 5 };
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -549,6 +549,16 @@ function panel(x, y, w, h, fill = '#ded895', border = '#543847', inner = '#f5f0c
   ctx.fillStyle = fill; ctx.fillRect(x + 4, y + 6, w - 8, h - 12); ctx.fillRect(x + 6, y + 4, w - 12, h - 8);
 }
 
+// Estrelas por recorde: 1 a 5 conforme o melhor placar com aquele item
+const STAR_STEPS = [10, 25, 50, 100, 200];
+function starsFor(record) { let n = 0; for (const t of STAR_STEPS) if (record >= t) n++; return n; }
+const STAR_MAP = ['...k...','..kyk..','kkkykkk','.kyyyk.','.kyyyk.','kyk.kyk','k.....k'];
+const STAR_ON  = fromMap(STAR_MAP, { k: '#7a5200', y: '#ffd52e' }, 1);
+const STAR_OFF = fromMap(STAR_MAP, { k: '#7a7060', y: '#c9c0a8' }, 1);
+function drawStars(x, y, n, gap = 9) {
+  for (let i = 0; i < 5; i++) ctx.drawImage(i < n ? STAR_ON : STAR_OFF, Math.round(x + i * gap), Math.round(y));
+}
+
 function medal(x, y, kind) {
   const colors = {
     bronze:   ['#b46a3c', '#d48a52', '#8a4a24'],
@@ -682,7 +692,7 @@ let shopFire = [];    // chamas da prévia na loja
 // ---------------------------------------------------------------------------
 // Dados salvos (recorde, moedas, pássaros comprados, pássaro escolhido)
 // ---------------------------------------------------------------------------
-const save = { best: 0, coins: 0, owned: ['amarelo'], selected: 'amarelo', ownedScenes: ['dia'], scene: 'dia' };
+const save = { best: 0, coins: 0, owned: ['amarelo'], selected: 'amarelo', ownedScenes: ['dia'], scene: 'dia', birdBest: {}, sceneBest: {} };
 try {
   const raw = JSON.parse(localStorage.getItem('flappy-save') || 'null');
   if (raw) Object.assign(save, raw);
@@ -694,6 +704,8 @@ for (const id of DEMO_UNLOCK) if (!save.owned.includes(id)) save.owned.push(id);
 if (!save.ownedScenes.includes('dia')) save.ownedScenes.push('dia');
 for (const id of DEMO_UNLOCK_SCENES) if (!save.ownedScenes.includes(id)) save.ownedScenes.push(id);
 if (!SCENES.some(s => s.id === save.scene)) save.scene = 'dia';
+if (!save.birdBest) save.birdBest = {};
+if (!save.sceneBest) save.sceneBest = {};
 if (!BIRDS.some(b => b.id === save.selected)) save.selected = 'amarelo';
 function persist() { try { localStorage.setItem('flappy-save', JSON.stringify(save)); } catch (e) {} }
 function currentBird() { return BIRDS.find(b => b.id === save.selected) || BIRDS[0]; }
@@ -704,7 +716,8 @@ function currentScene() { return SCENES.find(s => s.id === save.scene) || SCENES
 // ---------------------------------------------------------------------------
 let state = STATE.SPLASH;
 let frames = 0;
-let bird, pipes, score, groundX, deadTimer, panelY, flashAlpha, newBest;
+let bird, pipes, score, groundX, deadTimer, panelY, flashAlpha, newBest, newStar = false;
+let rankTab = 'birds';
 let runCoins = 0;               // moedas pegas nesta partida
 let pipeIndex = 0;              // quantos canos já foram criados nesta partida
 let coinSlots = [];             // quais índices do bloco atual têm moeda
@@ -720,6 +733,7 @@ function resetRun() { resetBird(); pipes = []; score = 0; groundX = 0; runCoins 
 function goSplash() { state = STATE.SPLASH; resetRun(); }
 function goReady()  { state = STATE.READY; resetRun(); SFX.swoosh(); }
 function goShop()   { state = STATE.SHOP; shopMsg = null; SFX.swoosh(); }
+function goRank()   { state = STATE.RANK; SFX.swoosh(); }
 
 function goPlay() {
   state = STATE.PLAY;
@@ -764,6 +778,11 @@ function die() {
   flashAlpha = 1;
   newBest = score > save.best;
   if (newBest) save.best = score;
+  const bid = currentBird().id, sid = currentScene().id;
+  const oldStars = starsFor(save.birdBest[bid] || 0) + starsFor(save.sceneBest[sid] || 0);
+  if (score > (save.birdBest[bid] || 0)) save.birdBest[bid] = score;
+  if (score > (save.sceneBest[sid] || 0)) save.sceneBest[sid] = score;
+  newStar = starsFor(save.birdBest[bid]) + starsFor(save.sceneBest[sid]) > oldStars;
   persist();
   SFX.hit();
   if (bird.y < GROUND_Y - BIRD_H) SFX.die();
@@ -772,8 +791,10 @@ function die() {
 // ---------------------------------------------------------------------------
 // Layout de botões e loja (usado tanto para desenhar quanto para o toque)
 // ---------------------------------------------------------------------------
-const BTN_START = { x: W / 2 - 52, y: 310, w: 104, h: 34 };
-const BTN_SHOP  = { x: W / 2 - 52, y: 352, w: 104, h: 34 };
+const BTN_START = { x: W / 2 - 52, y: 298, w: 104, h: 30 };
+const BTN_SHOP  = { x: W / 2 - 52, y: 334, w: 104, h: 30 };
+const BTN_RANK  = { x: W / 2 - 52, y: 370, w: 104, h: 30 };
+const RANK_ROW_H = 26, RANK_Y0 = 70;
 const BTN_BACK  = { x: 8, y: 8, w: 64, h: 26 };
 const TAB_BIRDS  = { x: W / 2 - 92, y: 40, w: 90, h: 22 };
 const TAB_SCENES = { x: W / 2 + 2,  y: 40, w: 90, h: 22 };
@@ -794,7 +815,12 @@ function input(pt) {
   audio();
   switch (state) {
     case STATE.SPLASH:
-      if (inside(pt, BTN_SHOP)) goShop(); else goReady();
+      if (inside(pt, BTN_SHOP)) goShop(); else if (inside(pt, BTN_RANK)) goRank(); else goReady();
+      break;
+    case STATE.RANK:
+      if (!pt || inside(pt, BTN_BACK)) { goSplash(); break; }
+      if (inside(pt, TAB_BIRDS))  { rankTab = 'birds';  SFX.swoosh(); }
+      if (inside(pt, TAB_SCENES)) { rankTab = 'scenes'; SFX.swoosh(); }
       break;
     case STATE.READY:  goPlay(); break;
     case STATE.PLAY:   flap(); break;
@@ -837,7 +863,7 @@ function sceneTap(sc) {
 }
 window.addEventListener('keydown', e => {
   if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW' || e.code === 'Enter') { e.preventDefault(); input(null); }
-  if (e.code === 'Escape' && state === STATE.SHOP) goSplash();
+  if (e.code === 'Escape' && (state === STATE.SHOP || state === STATE.RANK)) goSplash();
 });
 canvas.addEventListener('pointerdown', e => {
   e.preventDefault();
@@ -900,7 +926,7 @@ function update() {
   if (shopMsg && --shopMsg.t <= 0) shopMsg = null;
 
   // fogo do pássaro em uso (em todas as telas onde ele aparece)
-  if (currentBird().fire && state !== STATE.SHOP) {
+  if (currentBird().fire && state !== STATE.SHOP && state !== STATE.RANK) {
     const wind = state === STATE.PLAY ? speed() : state === STATE.DEAD ? 0 : PIPE_SPEED;
     const onGround = state === STATE.DEAD && bird.y >= GROUND_Y - BIRD_H;
     emitFire(fire, bird, wind, onGround ? 0.6 : 1);
@@ -922,6 +948,7 @@ function update() {
     case STATE.SPLASH:
     case STATE.READY:
     case STATE.SHOP:
+    case STATE.RANK:
       groundX = (groundX - PIPE_SPEED) % GROUND_TILE_W;
       bird.y = 220 + Math.sin(frames / 8) * 5;
       bird.rot = 0;
@@ -1040,7 +1067,8 @@ function drawSceneShop() {
     if (!owned) { ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(r.x + 6, r.y + 6, tw, th); }
     const tx = r.x + tw + 14 + (r.w - tw - 14) / 2;
     pixelText(rar.label, tx, r.y + 7, 8, rar.color, '#543847');
-    pixelText(sc.name, tx, r.y + 22, 10, '#543847', '#f5f0c0');
+    pixelText(sc.name, tx, r.y + 20, 10, '#543847', '#f5f0c0');
+    drawStars(tx - 20, r.y + 33, starsFor(save.sceneBest[sc.id] || 0), 8);
     if (sel) pixelText('EM USO', tx, r.y + 44, 9, '#ffffff', '#3a9a2a');
     else if (owned) pixelText('USAR', tx, r.y + 44, 9, '#ffffff', '#543847');
     else {
@@ -1048,6 +1076,47 @@ function drawSceneShop() {
       pixelText(String(sc.price), tx - 6, r.y + 44, 10, save.coins >= sc.price ? '#ffe060' : '#ff9090', '#543847', 'left');
     }
   }
+}
+
+function drawRank() {
+  ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(0, 0, W, H);
+  drawButton(BTN_BACK, 'VOLTAR', '#6aa8ff', '#a8ccff', '#3a70c0', 11);
+  pixelText('RANKING', W / 2, 8, 22, '#ffffff', '#543847');
+  const on = ['#b070e8', '#d8b0ff', '#7a40b0'], off = ['#8a7a60', '#a89880', '#5a4e3c'];
+  drawButton(TAB_BIRDS,  'PASSAROS', ...(rankTab === 'birds'  ? on : off), 10);
+  drawButton(TAB_SCENES, 'CENARIOS', ...(rankTab === 'scenes' ? on : off), 10);
+
+  const isBirds = rankTab === 'birds';
+  const table = isBirds ? save.birdBest : save.sceneBest;
+  const items = (isBirds ? BIRDS : SCENES).map(it => ({ it, rec: table[it.id] || 0 }))
+    .sort((a, b) => b.rec - a.rec || (isBirds ? BIRDS : SCENES).indexOf(a.it) - (isBirds ? BIRDS : SCENES).indexOf(b.it));
+
+  const px = 8, pw = W - 16;
+  panel(px, RANK_Y0 - 6, pw, items.length * RANK_ROW_H + 12);
+  items.forEach(({ it, rec }, i) => {
+    const y = RANK_Y0 + i * RANK_ROW_H;
+    const owned = isBirds ? save.owned.includes(it.id) : save.ownedScenes.includes(it.id);
+    if (i % 2) { ctx.fillStyle = 'rgba(0,0,0,0.06)'; ctx.fillRect(px + 6, y - 2, pw - 12, RANK_ROW_H); }
+    // posição
+    pixelText(String(i + 1) + '.', px + 14, y + 4, 10, i < 3 ? '#f5a623' : '#543847', '#f5f0c0', 'left');
+    // ícone
+    if (isBirds) {
+      ctx.save(); ctx.globalAlpha = owned ? 1 : 0.45;
+      ctx.drawImage(birdSprite(it, 1), 0, 0, BIRD_W, BIRD_H, px + 30, y, 24, 17);
+      ctx.restore();
+    } else {
+      const a = sceneAssets(it);
+      ctx.fillStyle = '#543847'; ctx.fillRect(px + 29, y - 1, 28, 20);
+      ctx.drawImage(a.bg, 0, 100, W, GROUND_Y - 100, px + 30, y, 26, 14);
+      ctx.drawImage(a.ground, 0, 0, W, 30, px + 30, y + 14, 26, 4);
+      if (!owned) { ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(px + 30, y, 26, 18); }
+    }
+    pixelText(it.name, px + 62, y + 4, 10, owned ? '#543847' : '#8a8070', '#f5f0c0', 'left');
+    // recorde e estrelas
+    drawNumber(rec, px + pw - 58, y + 3, smallDigits, SMALL_DW, 'right');
+    drawStars(px + pw - 52, y + 5, starsFor(rec));
+  });
+  pixelText(`Estrelas: ${STAR_STEPS.join(' / ')} pontos`, W / 2, H - 22, 9, '#ffffff', '#543847');
 }
 
 function drawShop() {
@@ -1072,12 +1141,13 @@ function drawShop() {
     if (!owned) ctx.globalAlpha = 0.55;
     drawBird(def, preview);
     ctx.globalAlpha = 1;
-    pixelText(def.name, r.x + r.w / 2, r.y + 43, 10, '#543847', '#f5f0c0');
-    if (sel) pixelText('EM USO', r.x + r.w / 2, r.y + 59, 9, '#ffffff', '#3a9a2a');
-    else if (owned) pixelText('USAR', r.x + r.w / 2, r.y + 59, 9, '#ffffff', '#543847');
+    pixelText(def.name, r.x + r.w / 2, r.y + 41, 10, '#543847', '#f5f0c0');
+    drawStars(r.x + r.w / 2 - 20, r.y + 53, starsFor(save.birdBest[def.id] || 0), 8);
+    if (sel) pixelText('EM USO', r.x + r.w / 2, r.y + 61, 9, '#ffffff', '#3a9a2a');
+    else if (owned) pixelText('USAR', r.x + r.w / 2, r.y + 61, 9, '#ffffff', '#543847');
     else {
-      drawCoin(r.x + r.w / 2 - 16, r.y + 65, false);
-      pixelText(String(def.price), r.x + r.w / 2 - 6, r.y + 59, 10, save.coins >= def.price ? '#ffe060' : '#ff9090', '#543847', 'left');
+      drawCoin(r.x + r.w / 2 - 16, r.y + 67, false);
+      pixelText(String(def.price), r.x + r.w / 2 - 6, r.y + 61, 10, save.coins >= def.price ? '#ffe060' : '#ff9090', '#543847', 'left');
     }
   }
   if (shopMsg) {
@@ -1099,6 +1169,7 @@ function draw() {
     ctx.save(); ctx.translate(0, -20); drawBird(); ctx.restore();
     drawButton(BTN_START, 'START');
     drawButton(BTN_SHOP, 'LOJA', '#6aa8ff', '#a8ccff', '#3a70c0');
+    drawButton(BTN_RANK, 'RANKING', '#b070e8', '#d8b0ff', '#7a40b0');
     drawCoinHud(10, 10, save.coins);
     if (save.best > 0) {
       pixelText('RECORDE', W / 2, 50, 12, '#ffffff', '#543847');
@@ -1108,6 +1179,7 @@ function draw() {
   }
 
   if (state === STATE.SHOP) { drawGround(); drawShop(); return; }
+  if (state === STATE.RANK) { drawGround(); drawRank(); return; }
 
   drawPipes();
   drawCoins();
@@ -1149,6 +1221,7 @@ function draw() {
       drawCoin(px + 120, py + 114, true);
       pixelText('+' + runCoins, px + 132, py + 106, 14, '#ffffff', '#543847', 'left');
       pixelText('total ' + save.coins, px + 206, py + 110, 9, '#543847', '#f5f0c0', 'right');
+      if (newStar && deadTimer % 40 < 28) pixelText('NOVA ESTRELA!', W / 2, panelY - 26, 14, '#ffd52e', '#543847');
       if (deadTimer > 60) drawButton({ x: W / 2 - 52, y: panelY + 158, w: 104, h: 34 }, 'OK');
     }
     if (flashAlpha > 0) {
