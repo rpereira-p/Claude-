@@ -204,7 +204,10 @@ const BIRDS = [
   { id: 'noturno',  name: 'Noturno',   rarity: 'epico',    price: 200, pal: pal('#2c2a5a', '#15133a', '#6a60c0', '#ffd040'), deco: 'stars' },
   { id: 'dourado',  name: 'Dourado',   rarity: 'lendario', price: 350, pal: pal('#ffcf2e', '#c08a00', '#fff2a0', '#e04020'), deco: 'crown' },
   { id: 'arcoiris', name: 'Arco-iris', rarity: 'lendario', price: 600, rainbow: true, pal: pal('#ff4040', '#c02020', '#ffffff') },
+  { id: 'chamas',   name: 'Em Chamas', rarity: 'lendario', price: 450, fire: true, pal: pal('#4a2a1a', '#2e1810', '#7a3a18', '#ffa020', { w: '#ffe0a0' }) },
 ];
+// Desbloqueio para demonstração (fica vazio na versão normal)
+const DEMO_UNLOCK = [];
 
 function buildBirdFrames(def, palette) {
   const deco = def.deco ? (g, s) => DECO[def.deco](g, s, def.decoColor) : null;
@@ -401,6 +404,79 @@ const SFX = {
 };
 
 // ---------------------------------------------------------------------------
+// Fogo: sistema de partículas com física
+// Cada chama nasce nas costas/cabeça do pássaro e:
+//  - herda o movimento do pássaro (inércia) e é arrastada pelo vento
+//    contrário ao deslocamento (o mundo corre para a esquerda);
+//  - sobe por empuxo (ar quente), com aceleração constante para cima;
+//  - perde velocidade horizontal pelo arrasto e treme aleatoriamente;
+//  - esfria com o tempo: branco -> amarelo -> laranja -> vermelho -> fumaça,
+//    encolhendo até apagar.
+// ---------------------------------------------------------------------------
+const FIRE_BUOYANCY = -0.045;   // aceleração para cima
+const FIRE_DRAG = 0.955;        // atrito horizontal por frame
+const FIRE_LIFE = [20, 34];     // duração em frames
+const FIRE_MAX = 260;
+const FIRE_RISE_MAX = -1.6;     // velocidade máxima de subida (ar quente)
+
+function rnd(a, b) { return a + Math.random() * (b - a); }
+
+// emite chamas a partir de um pássaro (posição, rotação, velocidade vertical)
+// wind = velocidade do mundo para a esquerda (0 quando parado)
+function emitFire(list, b, wind, rate = 1) {
+  const cx = b.x + BIRD_W / 2, cy = b.y + BIRD_H / 2;
+  const cos = Math.cos(b.rot), sin = Math.sin(b.rot);
+  const spawn = (lx, ly, n, hot) => {
+    for (let i = 0; i < n; i++) {
+      if (list.length >= FIRE_MAX) return;
+      // ponto local (relativo ao centro) girado junto com o pássaro
+      const ox = lx + rnd(-2, 2), oy = ly + rnd(-3, 3);
+      const x = cx + ox * cos - oy * sin, y = cy + ox * sin + oy * cos;
+      list.push({
+        x, y,
+        vx: -wind * rnd(0.7, 1.0) + rnd(-0.5, 0.5),
+        vy: -b.vy * rnd(0.35, 0.6) + rnd(-0.6, 0.1),   // inércia + sopro inicial
+        life: rnd(FIRE_LIFE[0], FIRE_LIFE[1]) * (hot ? 1 : 0.7),
+        max: 0, size: hot ? rnd(3, 6) : rnd(2, 4),
+      });
+      list[list.length - 1].max = list[list.length - 1].life;
+    }
+  };
+  spawn(-BIRD_W / 2 + 3, 0, Math.round(4 * rate), true);   // costas
+  spawn(-BIRD_W / 2 + 6, -5, Math.round(1 * rate), true);
+  spawn(2, -BIRD_H / 2 + 1, Math.random() < 0.7 * rate ? 1 : 0, false); // topo da cabeça
+}
+
+function updateFire(list) {
+  for (const p of list) {
+    p.vy = Math.max(FIRE_RISE_MAX, p.vy + FIRE_BUOYANCY);
+    p.vx *= FIRE_DRAG;
+    p.vx += rnd(-0.18, 0.18);          // turbulência
+    p.vy += rnd(-0.08, 0.08);
+    p.x += p.vx; p.y += p.vy;
+    p.life--;
+  }
+  for (let i = list.length - 1; i >= 0; i--) if (list[i].life <= 0) list.splice(i, 1);
+}
+
+function drawFire(list) {
+  for (const p of list) {
+    const t = p.life / p.max;                 // 1 = recém-nascida, 0 = apagando
+    let color, size = Math.max(1, Math.round(p.size * (0.4 + t * 0.8)));
+    if (t > 0.8)      color = '#fff6c0';
+    else if (t > 0.6) color = '#ffd23a';
+    else if (t > 0.4) color = '#ff7a1c';
+    else if (t > 0.2) color = '#d42a10';
+    else { color = 'rgba(70,60,60,' + (t * 2.5).toFixed(2) + ')'; size += 1; } // fumaça
+    ctx.fillStyle = color;
+    ctx.fillRect(Math.round(p.x - size / 2), Math.round(p.y - size / 2), size, size);
+  }
+}
+
+let fire = [];        // chamas do pássaro em jogo
+let shopFire = [];    // chamas da prévia na loja
+
+// ---------------------------------------------------------------------------
 // Dados salvos (recorde, moedas, pássaros comprados, pássaro escolhido)
 // ---------------------------------------------------------------------------
 const save = { best: 0, coins: 0, owned: ['amarelo'], selected: 'amarelo' };
@@ -411,6 +487,7 @@ try {
   if (legacyBest > save.best) save.best = legacyBest;
 } catch (e) {}
 if (!save.owned.includes('amarelo')) save.owned.push('amarelo');
+for (const id of DEMO_UNLOCK) if (!save.owned.includes(id)) save.owned.push(id);
 if (!BIRDS.some(b => b.id === save.selected)) save.selected = 'amarelo';
 function persist() { try { localStorage.setItem('flappy-save', JSON.stringify(save)); } catch (e) {} }
 function currentBird() { return BIRDS.find(b => b.id === save.selected) || BIRDS[0]; }
@@ -431,7 +508,7 @@ function resetBird() {
   bird = { x: BIRD_X, y: 220, vy: 0, rot: 0, frame: 0, animT: 0 };
 }
 
-function resetRun() { resetBird(); pipes = []; score = 0; groundX = 0; runCoins = 0; pipeIndex = 0; popups = []; }
+function resetRun() { resetBird(); pipes = []; score = 0; groundX = 0; runCoins = 0; pipeIndex = 0; popups = []; fire = []; }
 function goSplash() { state = STATE.SPLASH; resetRun(); }
 function goReady()  { state = STATE.READY; resetRun(); SFX.swoosh(); }
 function goShop()   { state = STATE.SHOP; shopMsg = null; SFX.swoosh(); }
@@ -490,7 +567,7 @@ function die() {
 const BTN_START = { x: W / 2 - 52, y: 310, w: 104, h: 34 };
 const BTN_SHOP  = { x: W / 2 - 52, y: 352, w: 104, h: 34 };
 const BTN_BACK  = { x: 8, y: 8, w: 64, h: 26 };
-const SHOP_COLS = 3, SHOP_CELL_W = 88, SHOP_CELL_H = 86, SHOP_X0 = (W - SHOP_COLS * SHOP_CELL_W) / 2, SHOP_Y0 = 70;
+const SHOP_COLS = 3, SHOP_CELL_W = 88, SHOP_CELL_H = 80, SHOP_X0 = (W - SHOP_COLS * SHOP_CELL_W) / 2, SHOP_Y0 = 44;
 function shopCell(i) {
   return { x: SHOP_X0 + (i % SHOP_COLS) * SHOP_CELL_W + 3, y: SHOP_Y0 + Math.floor(i / SHOP_COLS) * SHOP_CELL_H + 3, w: SHOP_CELL_W - 6, h: SHOP_CELL_H - 6 };
 }
@@ -593,6 +670,24 @@ function update() {
   popups = popups.filter(q => q.t > 0);
   if (shopMsg && --shopMsg.t <= 0) shopMsg = null;
 
+  // fogo do pássaro em uso (em todas as telas onde ele aparece)
+  if (currentBird().fire && state !== STATE.SHOP) {
+    const wind = state === STATE.PLAY ? speed() : state === STATE.DEAD ? 0 : PIPE_SPEED;
+    const onGround = state === STATE.DEAD && bird.y >= GROUND_Y - BIRD_H;
+    emitFire(fire, bird, wind, onGround ? 0.6 : 1);
+  }
+  updateFire(fire);
+  // prévia da loja
+  if (state === STATE.SHOP) {
+    const i = BIRDS.findIndex(b => b.fire);
+    if (i >= 0) {
+      const r = shopCell(i);
+      const pb = { x: r.x + r.w / 2 - BIRD_W / 2, y: r.y + 17, rot: 0, vy: 0 };
+      emitFire(shopFire, pb, 0.6, 0.5);
+    }
+    updateFire(shopFire);
+  } else shopFire = [];
+
   switch (state) {
     case STATE.SPLASH:
     case STATE.READY:
@@ -664,6 +759,7 @@ function drawCoins() {
 
 function drawBird(def = currentBird(), b = bird) {
   const f = [0, 1, 2, 1][b.frame];
+  if (def.fire) drawFire(b === bird ? fire : shopFire);
   ctx.save();
   ctx.translate(Math.round(b.x + BIRD_W / 2), Math.round(b.y + BIRD_H / 2));
   ctx.rotate(b.rot);
@@ -701,7 +797,7 @@ function drawCoinHud(x, y, n) {
 function drawShop() {
   ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(0, 0, W, H);
   drawButton(BTN_BACK, 'VOLTAR', '#6aa8ff', '#a8ccff', '#3a70c0', 11);
-  pixelText('LOJA', W / 2, 10, 22, '#ffffff', '#543847');
+  pixelText('LOJA', W / 2, 8, 22, '#ffffff', '#543847');
   drawCoinHud(W - 74, 14, save.coins);
 
   for (let i = 0; i < BIRDS.length; i++) {
@@ -711,25 +807,25 @@ function drawShop() {
     ctx.fillStyle = sel ? '#ffffff' : '#543847'; ctx.fillRect(r.x - 2, r.y - 2, r.w + 4, r.h + 4);
     ctx.fillStyle = rar.color; ctx.fillRect(r.x, r.y, r.w, r.h);
     ctx.fillStyle = owned ? '#f5f0c0' : '#ded895'; ctx.fillRect(r.x + 3, r.y + 3, r.w - 6, r.h - 6);
-    pixelText(rar.label, r.x + r.w / 2, r.y + 5, 8, rar.color, '#543847');
-    const preview = { x: r.x + r.w / 2 - BIRD_W / 2, y: r.y + 20 + (sel ? Math.sin(frames / 8) * 2 : 0), rot: 0, frame: bird.frame };
+    pixelText(rar.label, r.x + r.w / 2, r.y + 4, 8, rar.color, '#543847');
+    const preview = { x: r.x + r.w / 2 - BIRD_W / 2, y: r.y + 17 + (sel ? Math.sin(frames / 8) * 2 : 0), rot: 0, frame: bird.frame };
     if (!owned) ctx.globalAlpha = 0.55;
     drawBird(def, preview);
     ctx.globalAlpha = 1;
-    pixelText(def.name, r.x + r.w / 2, r.y + 47, 10, '#543847', '#f5f0c0');
-    if (sel) pixelText('EM USO', r.x + r.w / 2, r.y + 63, 9, '#ffffff', '#3a9a2a');
-    else if (owned) pixelText('USAR', r.x + r.w / 2, r.y + 63, 9, '#ffffff', '#543847');
+    pixelText(def.name, r.x + r.w / 2, r.y + 43, 10, '#543847', '#f5f0c0');
+    if (sel) pixelText('EM USO', r.x + r.w / 2, r.y + 59, 9, '#ffffff', '#3a9a2a');
+    else if (owned) pixelText('USAR', r.x + r.w / 2, r.y + 59, 9, '#ffffff', '#543847');
     else {
-      drawCoin(r.x + r.w / 2 - 16, r.y + 69, false);
-      pixelText(String(def.price), r.x + r.w / 2 - 6, r.y + 63, 10, save.coins >= def.price ? '#ffe060' : '#ff9090', '#543847', 'left');
+      drawCoin(r.x + r.w / 2 - 16, r.y + 65, false);
+      pixelText(String(def.price), r.x + r.w / 2 - 6, r.y + 59, 10, save.coins >= def.price ? '#ffe060' : '#ff9090', '#543847', 'left');
     }
   }
   if (shopMsg) {
     ctx.globalAlpha = Math.min(1, shopMsg.t / 20);
-    pixelText(shopMsg.text, W / 2, H - 60, 13, shopMsg.color, '#543847');
+    pixelText(shopMsg.text, W / 2, H - 52, 13, shopMsg.color, '#543847');
     ctx.globalAlpha = 1;
   }
-  pixelText('Pegue moedas nos canos para comprar', W / 2, H - 36, 9, '#ffffff', '#543847');
+  pixelText('Pegue moedas nos canos para comprar', W / 2, H - 30, 9, '#ffffff', '#543847');
 }
 
 function draw() {
