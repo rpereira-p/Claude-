@@ -57,7 +57,7 @@ const COINS_PER_BLOCK = 10;    // moedas distribuídas...
 const PIPES_PER_BLOCK = 30;    // ...a cada 30 canos
 const COIN_R = 7;
 
-const STATE = { SPLASH: 0, READY: 1, PLAY: 2, DEAD: 3, SHOP: 4, RANK: 5 };
+const STATE = { SPLASH: 0, READY: 1, PLAY: 2, DEAD: 3, SHOP: 4, RANK: 5, QUESTS: 6 };
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -559,6 +559,58 @@ function drawStars(x, y, n, gap = 9) {
   for (let i = 0; i < 5; i++) ctx.drawImage(i < n ? STAR_ON : STAR_OFF, Math.round(x + i * gap), Math.round(y));
 }
 
+// ---------------------------------------------------------------------------
+// Desafios: escadas de metas cumulativas. Cada degrau paga uma vez e nunca
+// reinicia: bater 100 depois de 50 ganha o prêmio do 100 e mantém o do 50.
+// ---------------------------------------------------------------------------
+const QUEST_STEPS = [10, 25, 50, 100, 200, 500];       // pontos numa partida
+const QUEST_REWARD = { comum: 1, raro: 1.5, epico: 2, lendario: 3 }; // multiplicador por raridade
+function questReward(step, rarity) { return Math.round(step / 2 * QUEST_REWARD[rarity]); }
+
+// Desafios gerais (acumulados ao longo de todas as partidas)
+const GLOBAL_QUESTS = [
+  { id: 'pipes100',  text: 'Passe 100 canos no total',    stat: 'totalPipes', goal: 100,  reward: 30 },
+  { id: 'pipes500',  text: 'Passe 500 canos no total',    stat: 'totalPipes', goal: 500,  reward: 100 },
+  { id: 'pipes2000', text: 'Passe 2000 canos no total',   stat: 'totalPipes', goal: 2000, reward: 300 },
+  { id: 'coins50',   text: 'Colete 50 moedas nos canos',  stat: 'totalCoins', goal: 50,   reward: 25 },
+  { id: 'coins250',  text: 'Colete 250 moedas nos canos', stat: 'totalCoins', goal: 250,  reward: 100 },
+  { id: 'coins1000', text: 'Colete 1000 moedas nos canos',stat: 'totalCoins', goal: 1000, reward: 400 },
+  { id: 'games25',   text: 'Jogue 25 partidas',           stat: 'games',      goal: 25,   reward: 20 },
+  { id: 'games100',  text: 'Jogue 100 partidas',          stat: 'games',      goal: 100,  reward: 80 },
+  { id: 'birds3',    text: 'Tenha 3 passaros',            stat: 'birdsOwned', goal: 3,    reward: 40 },
+  { id: 'birds7',    text: 'Tenha 7 passaros',            stat: 'birdsOwned', goal: 7,    reward: 120 },
+  { id: 'birds13',   text: 'Tenha todos os passaros',     stat: 'birdsOwned', goal: 13,   reward: 500 },
+  { id: 'scenes3',   text: 'Tenha 3 cenarios',            stat: 'scenesOwned',goal: 3,    reward: 40 },
+  { id: 'scenes9',   text: 'Tenha todos os cenarios',     stat: 'scenesOwned',goal: 9,    reward: 500 },
+  { id: 'stars10',   text: 'Some 10 estrelas',            stat: 'stars',      goal: 10,   reward: 100 },
+  { id: 'stars40',   text: 'Some 40 estrelas',            stat: 'stars',      goal: 40,   reward: 400 },
+];
+function questStat(name) {
+  switch (name) {
+    case 'totalPipes':  return save.stats.totalPipes;
+    case 'totalCoins':  return save.stats.totalCoins;
+    case 'games':       return save.stats.games;
+    case 'birdsOwned':  return save.owned.length;
+    case 'scenesOwned': return save.ownedScenes.length;
+    case 'stars': {
+      let n = 0;
+      for (const b of BIRDS) n += starsFor(save.birdBest[b.id] || 0);
+      for (const c of SCENES) n += starsFor(save.sceneBest[c.id] || 0);
+      return n;
+    }
+  }
+  return 0;
+}
+// Confere tudo que ainda não foi pago e paga. Devolve a lista de prêmios novos.
+function claimQuests() {
+  const won = [];
+  const claim = (key, text, reward) => { if (save.claimed[key]) return; save.claimed[key] = 1; save.coins += reward; won.push({ text, reward }); };
+  for (const b of BIRDS) for (const st of QUEST_STEPS) if ((save.birdBest[b.id] || 0) >= st) claim(`b:${b.id}:${st}`, `${st} pts com ${b.name}`, questReward(st, b.rarity));
+  for (const c of SCENES) for (const st of QUEST_STEPS) if ((save.sceneBest[c.id] || 0) >= st) claim(`s:${c.id}:${st}`, `${st} pts em ${c.name}`, questReward(st, c.rarity));
+  for (const q of GLOBAL_QUESTS) if (questStat(q.stat) >= q.goal) claim(`g:${q.id}`, q.text, q.reward);
+  return won;
+}
+
 function medal(x, y, kind) {
   const colors = {
     bronze:   ['#b46a3c', '#d48a52', '#8a4a24'],
@@ -692,7 +744,7 @@ let shopFire = [];    // chamas da prévia na loja
 // ---------------------------------------------------------------------------
 // Dados salvos (recorde, moedas, pássaros comprados, pássaro escolhido)
 // ---------------------------------------------------------------------------
-const save = { best: 0, coins: 0, owned: ['amarelo'], selected: 'amarelo', ownedScenes: ['dia'], scene: 'dia', birdBest: {}, sceneBest: {} };
+const save = { best: 0, coins: 0, owned: ['amarelo'], selected: 'amarelo', ownedScenes: ['dia'], scene: 'dia', birdBest: {}, sceneBest: {}, claimed: {}, stats: { totalPipes: 0, totalCoins: 0, games: 0 } };
 try {
   const raw = JSON.parse(localStorage.getItem('flappy-save') || 'null');
   if (raw) Object.assign(save, raw);
@@ -706,6 +758,8 @@ for (const id of DEMO_UNLOCK_SCENES) if (!save.ownedScenes.includes(id)) save.ow
 if (!SCENES.some(s => s.id === save.scene)) save.scene = 'dia';
 if (!save.birdBest) save.birdBest = {};
 if (!save.sceneBest) save.sceneBest = {};
+if (!save.claimed) save.claimed = {};
+if (!save.stats) save.stats = { totalPipes: 0, totalCoins: 0, games: 0 };
 if (!BIRDS.some(b => b.id === save.selected)) save.selected = 'amarelo';
 function persist() { try { localStorage.setItem('flappy-save', JSON.stringify(save)); } catch (e) {} }
 function currentBird() { return BIRDS.find(b => b.id === save.selected) || BIRDS[0]; }
@@ -717,6 +771,7 @@ function currentScene() { return SCENES.find(s => s.id === save.scene) || SCENES
 let state = STATE.SPLASH;
 let frames = 0;
 let bird, pipes, score, groundX, deadTimer, panelY, flashAlpha, newBest, newStar = false;
+let questsWon = [], questTotal = 0, questTab = 'birds';
 let rankTab = 'birds';
 let runCoins = 0;               // moedas pegas nesta partida
 let pipeIndex = 0;              // quantos canos já foram criados nesta partida
@@ -734,6 +789,7 @@ function goSplash() { state = STATE.SPLASH; resetRun(); }
 function goReady()  { state = STATE.READY; resetRun(); SFX.swoosh(); }
 function goShop()   { state = STATE.SHOP; shopMsg = null; SFX.swoosh(); }
 function goRank()   { state = STATE.RANK; SFX.swoosh(); }
+function goQuests() { state = STATE.QUESTS; SFX.swoosh(); }
 
 function goPlay() {
   state = STATE.PLAY;
@@ -783,6 +839,9 @@ function die() {
   if (score > (save.birdBest[bid] || 0)) save.birdBest[bid] = score;
   if (score > (save.sceneBest[sid] || 0)) save.sceneBest[sid] = score;
   newStar = starsFor(save.birdBest[bid]) + starsFor(save.sceneBest[sid]) > oldStars;
+  save.stats.games++;
+  questsWon = claimQuests();
+  questTotal = questsWon.reduce((a, q) => a + q.reward, 0);
   persist();
   SFX.hit();
   if (bird.y < GROUND_Y - BIRD_H) SFX.die();
@@ -792,8 +851,14 @@ function die() {
 // Layout de botões e loja (usado tanto para desenhar quanto para o toque)
 // ---------------------------------------------------------------------------
 const BTN_START = { x: W / 2 - 52, y: 298, w: 104, h: 30 };
-const BTN_SHOP  = { x: W / 2 - 52, y: 334, w: 104, h: 30 };
-const BTN_RANK  = { x: W / 2 - 52, y: 370, w: 104, h: 30 };
+const BTN_SHOP  = { x: W / 2 - 108, y: 334, w: 104, h: 30 };
+const BTN_RANK  = { x: W / 2 + 4,   y: 334, w: 104, h: 30 };
+const BTN_QUEST = { x: W / 2 - 52,  y: 370, w: 104, h: 30 };
+const TAB_Q = [
+  { x: 10,  y: 40, w: 86, h: 22, id: 'birds',  label: 'PASSAROS' },
+  { x: 101, y: 40, w: 86, h: 22, id: 'scenes', label: 'CENARIOS' },
+  { x: 192, y: 40, w: 86, h: 22, id: 'global', label: 'GERAIS' },
+];
 const RANK_ROW_H = 26, RANK_Y0 = 70;
 const BTN_BACK  = { x: 8, y: 8, w: 64, h: 26 };
 const TAB_BIRDS  = { x: W / 2 - 92, y: 40, w: 90, h: 22 };
@@ -815,7 +880,11 @@ function input(pt) {
   audio();
   switch (state) {
     case STATE.SPLASH:
-      if (inside(pt, BTN_SHOP)) goShop(); else if (inside(pt, BTN_RANK)) goRank(); else goReady();
+      if (inside(pt, BTN_SHOP)) goShop(); else if (inside(pt, BTN_RANK)) goRank(); else if (inside(pt, BTN_QUEST)) goQuests(); else goReady();
+      break;
+    case STATE.QUESTS:
+      if (!pt || inside(pt, BTN_BACK)) { goSplash(); break; }
+      for (const t of TAB_Q) if (inside(pt, t)) { questTab = t.id; SFX.swoosh(); }
       break;
     case STATE.RANK:
       if (!pt || inside(pt, BTN_BACK)) { goSplash(); break; }
@@ -863,7 +932,7 @@ function sceneTap(sc) {
 }
 window.addEventListener('keydown', e => {
   if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW' || e.code === 'Enter') { e.preventDefault(); input(null); }
-  if (e.code === 'Escape' && (state === STATE.SHOP || state === STATE.RANK)) goSplash();
+  if (e.code === 'Escape' && (state === STATE.SHOP || state === STATE.RANK || state === STATE.QUESTS)) goSplash();
 });
 canvas.addEventListener('pointerdown', e => {
   e.preventDefault();
@@ -897,7 +966,7 @@ function collectCoins() {
     const c = coinPos(p);
     const nx = Math.max(b.x, Math.min(c.x, b.x + b.w)), ny = Math.max(b.y, Math.min(c.y, b.y + b.h));
     if ((nx - c.x) ** 2 + (ny - c.y) ** 2 <= COIN_R * COIN_R) {
-      p.coinTaken = true; runCoins++; save.coins++;
+      p.coinTaken = true; runCoins++; save.coins++; save.stats.totalCoins++;
       popups.push({ x: c.x, y: c.y, t: 40 });
       SFX.coin();
     }
@@ -926,7 +995,7 @@ function update() {
   if (shopMsg && --shopMsg.t <= 0) shopMsg = null;
 
   // fogo do pássaro em uso (em todas as telas onde ele aparece)
-  if (currentBird().fire && state !== STATE.SHOP && state !== STATE.RANK) {
+  if (currentBird().fire && state !== STATE.SHOP && state !== STATE.RANK && state !== STATE.QUESTS) {
     const wind = state === STATE.PLAY ? speed() : state === STATE.DEAD ? 0 : PIPE_SPEED;
     const onGround = state === STATE.DEAD && bird.y >= GROUND_Y - BIRD_H;
     emitFire(fire, bird, wind, onGround ? 0.6 : 1);
@@ -949,6 +1018,7 @@ function update() {
     case STATE.READY:
     case STATE.SHOP:
     case STATE.RANK:
+    case STATE.QUESTS:
       groundX = (groundX - PIPE_SPEED) % GROUND_TILE_W;
       bird.y = 220 + Math.sin(frames / 8) * 5;
       bird.rot = 0;
@@ -962,7 +1032,7 @@ function update() {
       updateBirdPhysics();
       for (const p of pipes) {
         p.x -= v;
-        if (!p.passed && p.x + PIPE_W < bird.x) { p.passed = true; score++; SFX.point(); }
+        if (!p.passed && p.x + PIPE_W < bird.x) { p.passed = true; score++; save.stats.totalPipes++; SFX.point(); }
       }
       if (pipes.length && pipes[0].x < -PIPE_CAP_W) pipes.shift();
       if (pipes[pipes.length - 1].x <= W - PIPE_SPACING + PIPE_W) spawnPipe(pipes[pipes.length - 1].x + PIPE_SPACING);
@@ -980,7 +1050,7 @@ function update() {
         if (bird.y > GROUND_Y - BIRD_H) bird.y = GROUND_Y - BIRD_H;
         bird.rot = Math.min(Math.PI / 2, bird.rot + 0.12);
       }
-      if (deadTimer > 30) panelY = Math.max(H / 2 - 130, panelY - 14);
+      if (deadTimer > 30) panelY = Math.max(H / 2 - (questTotal > 0 ? 140 : 130), panelY - 14);
       break;
   }
 }
@@ -1078,6 +1148,76 @@ function drawSceneShop() {
   }
 }
 
+function drawQuests() {
+  ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(0, 0, W, H);
+  drawButton(BTN_BACK, 'VOLTAR', '#6aa8ff', '#a8ccff', '#3a70c0', 11);
+  pixelText('DESAFIOS', W / 2, 8, 22, '#ffffff', '#543847');
+  drawCoinHud(W - 74, 14, save.coins);
+  const on = ['#4cc07a', '#9ae8b4', '#2a8a4e'], off = ['#8a7a60', '#a89880', '#5a4e3c'];
+  for (const t of TAB_Q) drawButton(t, t.label, ...(questTab === t.id ? on : off), 9);
+
+  const px = 8, pw = W - 16, y0 = 70;
+  if (questTab === 'global') {
+    const rowH = 24;
+    panel(px, y0 - 6, pw, GLOBAL_QUESTS.length * rowH + 12);
+    GLOBAL_QUESTS.forEach((q, i) => {
+      const y = y0 + i * rowH, done = !!save.claimed['g:' + q.id];
+      const cur = Math.min(questStat(q.stat), q.goal);
+      if (i % 2) { ctx.fillStyle = 'rgba(0,0,0,0.06)'; ctx.fillRect(px + 6, y - 2, pw - 12, rowH); }
+      // caixa de check
+      ctx.fillStyle = '#543847'; ctx.fillRect(px + 12, y + 2, 12, 12);
+      ctx.fillStyle = done ? '#4cc07a' : '#f5f0c0'; ctx.fillRect(px + 14, y + 4, 8, 8);
+      if (done) { ctx.fillStyle = '#ffffff'; ctx.fillRect(px + 16, y + 7, 2, 3); ctx.fillRect(px + 18, y + 5, 2, 5); }
+      pixelText(q.text, px + 30, y + 1, 9, done ? '#3a9a2a' : '#543847', '#f5f0c0', 'left');
+      // barra de progresso
+      ctx.fillStyle = '#543847'; ctx.fillRect(px + 30, y + 14, 120, 6);
+      ctx.fillStyle = done ? '#4cc07a' : '#f5a623'; ctx.fillRect(px + 31, y + 15, Math.round(118 * cur / q.goal), 4);
+      pixelText(`${cur}/${q.goal}`, px + 156, y + 11, 8, '#543847', '#f5f0c0', 'left');
+      drawCoin(px + pw - 42, y + 9, false);
+      pixelText(String(q.reward), px + pw - 34, y + 3, 10, done ? '#3a9a2a' : '#7a5200', '#f5f0c0', 'left');
+    });
+    return;
+  }
+
+  const isBirds = questTab === 'birds';
+  const list = isBirds ? BIRDS : SCENES, table = isBirds ? save.birdBest : save.sceneBest, pre = isBirds ? 'b:' : 's:';
+  const rowH = 26;
+  panel(px, y0 - 6, pw, list.length * rowH + 12);
+  list.forEach((it, i) => {
+    const y = y0 + i * rowH, rec = table[it.id] || 0;
+    const owned = isBirds ? save.owned.includes(it.id) : save.ownedScenes.includes(it.id);
+    if (i % 2) { ctx.fillStyle = 'rgba(0,0,0,0.06)'; ctx.fillRect(px + 6, y - 2, pw - 12, rowH); }
+    if (isBirds) {
+      ctx.save(); ctx.globalAlpha = owned ? 1 : 0.45;
+      ctx.drawImage(birdSprite(it, 1), 0, 0, BIRD_W, BIRD_H, px + 10, y, 24, 17);
+      ctx.restore();
+    } else {
+      const a = sceneAssets(it);
+      ctx.fillStyle = '#543847'; ctx.fillRect(px + 9, y - 1, 28, 20);
+      ctx.drawImage(a.bg, 0, 100, W, GROUND_Y - 100, px + 10, y, 26, 14);
+      ctx.drawImage(a.ground, 0, 0, W, 30, px + 10, y + 14, 26, 4);
+      if (!owned) { ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(px + 10, y, 26, 18); }
+    }
+    pixelText(it.name, px + 42, y - 1, 9, owned ? '#543847' : '#8a8070', '#f5f0c0', 'left');
+    // escada de metas: um quadradinho por degrau (verde = pago, laranja = próximo)
+    let next = null;
+    QUEST_STEPS.forEach((st, k) => {
+      const done = !!save.claimed[`${pre}${it.id}:${st}`];
+      if (!done && next === null) next = st;
+      const x = px + 42 + k * 15;
+      ctx.fillStyle = '#543847'; ctx.fillRect(x, y + 11, 12, 8);
+      ctx.fillStyle = done ? '#4cc07a' : (st === next ? '#f5a623' : '#e8e0c0'); ctx.fillRect(x + 1, y + 12, 10, 6);
+    });
+    if (next === null) pixelText('COMPLETO', px + pw - 10, y + 3, 9, '#3a9a2a', '#f5f0c0', 'right');
+    else {
+      pixelText(`${next} pts`, px + pw - 48, y - 1, 9, '#543847', '#f5f0c0', 'right');
+      drawCoin(px + pw - 44, y + 15, false);
+      pixelText(String(questReward(next, it.rarity)), px + pw - 36, y + 9, 9, '#7a5200', '#f5f0c0', 'left');
+    }
+  });
+  pixelText('Cada meta paga uma vez e nunca reinicia', W / 2, H - 22, 9, '#ffffff', '#543847');
+}
+
 function drawRank() {
   ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(0, 0, W, H);
   drawButton(BTN_BACK, 'VOLTAR', '#6aa8ff', '#a8ccff', '#3a70c0', 11);
@@ -1170,6 +1310,7 @@ function draw() {
     drawButton(BTN_START, 'START');
     drawButton(BTN_SHOP, 'LOJA', '#6aa8ff', '#a8ccff', '#3a70c0');
     drawButton(BTN_RANK, 'RANKING', '#b070e8', '#d8b0ff', '#7a40b0');
+    drawButton(BTN_QUEST, 'DESAFIOS', '#4cc07a', '#9ae8b4', '#2a8a4e');
     drawCoinHud(10, 10, save.coins);
     if (save.best > 0) {
       pixelText('RECORDE', W / 2, 50, 12, '#ffffff', '#543847');
@@ -1180,6 +1321,7 @@ function draw() {
 
   if (state === STATE.SHOP) { drawGround(); drawShop(); return; }
   if (state === STATE.RANK) { drawGround(); drawRank(); return; }
+  if (state === STATE.QUESTS) { drawGround(); drawQuests(); return; }
 
   drawPipes();
   drawCoins();
@@ -1203,7 +1345,7 @@ function draw() {
     if (deadTimer > 30) {
       pixelText('Fim de jogo', W / 2, panelY - 60, 30, '#f5a623', '#543847');
       const px = W / 2 - 113, py = panelY;
-      panel(px, py, 226, 140);
+      panel(px, py, 226, questTotal > 0 ? 158 : 140);
       pixelText('MEDALHA', px + 60, py + 12, 12, '#f5a623', '#543847');
       pixelText('PLACAR', px + 176, py + 12, 12, '#f5a623', '#543847');
       drawNumber(score, px + 206, py + 30, bigDigits, BIG_DW, 'right');
@@ -1221,8 +1363,14 @@ function draw() {
       drawCoin(px + 120, py + 114, true);
       pixelText('+' + runCoins, px + 132, py + 106, 14, '#ffffff', '#543847', 'left');
       pixelText('total ' + save.coins, px + 206, py + 110, 9, '#543847', '#f5f0c0', 'right');
+      if (questTotal > 0) {
+        pixelText('DESAFIOS', px + 60, py + 126, 12, '#4cc07a', '#543847');
+        drawCoin(px + 120, py + 136, true);
+        pixelText('+' + questTotal, px + 132, py + 128, 14, '#ffe060', '#543847', 'left');
+        pixelText(questsWon.length + (questsWon.length === 1 ? ' meta' : ' metas'), px + 206, py + 132, 9, '#543847', '#f5f0c0', 'right');
+      }
       if (newStar && deadTimer % 40 < 28) pixelText('NOVA ESTRELA!', W / 2, panelY - 26, 14, '#ffd52e', '#543847');
-      if (deadTimer > 60) drawButton({ x: W / 2 - 52, y: panelY + 158, w: 104, h: 34 }, 'OK');
+      if (deadTimer > 60) drawButton({ x: W / 2 - 52, y: panelY + (questTotal > 0 ? 176 : 158), w: 104, h: 34 }, 'OK');
     }
     if (flashAlpha > 0) {
       ctx.fillStyle = `rgba(255,255,255,${flashAlpha})`;
