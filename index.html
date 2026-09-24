@@ -8,7 +8,10 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="manifest.json">
-<title>Flappy Bird</title>
+<title>Skyhop</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body {
@@ -51,7 +54,7 @@ const SPEED_RAMP_START = 50;   // a partir deste placar a velocidade começa a s
 const SPEED_RAMP_END = 100;    // neste placar a velocidade para de subir
 const PIPE_SPEED_MAX = 3.2;    // velocidade final
 const BIRD_X = 62;
-const BIRD_W = 34, BIRD_H = 24;
+const BIRD_W = 52, BIRD_H = 36;   // sprite 26x18 em escala 2
 const FIRST_PIPE_X = W + 60;
 const COINS_PER_BLOCK = 10;    // moedas distribuídas...
 const PIPES_PER_BLOCK = 30;    // ...a cada 30 canos
@@ -94,88 +97,111 @@ function fromMap(rows, palette, scale = 1, deco) {
 // Letras: k contorno, b corpo, s sombra do corpo, w olho, r bico, e barriga,
 // c destaque de cor secundária (usado em alguns designs)
 // ---------------------------------------------------------------------------
+// Personagem do Skyhop: 26x18, 3 quadros (asa em cima / meio / embaixo).
+// Letras: k contorno, b corpo, a asa, e barriga, w olho, p pupila, g sobrancelha,
+// r bico, d bico escuro, c topete e cauda
 const BIRD_MAPS = [
-  [
-  '......kkkkkk.....',
-  '....kkbbbbbbkk...',
-  '...kbbbbbkwwwwk..',
-  '..kbbbbbbkwwwwwk.',
-  '.ksssbbbbkwwwkwk.',
-  'ksbbbsbbbkwwwwwk.',
-  'ksbbbbsbbbkkkkk..',
-  'ksbbbbsbbbkrrrrrk',
-  '.kssssbbbbrkkkkkk',
-  '..kkkkeeeekrrrrk.',
-  '....kkeeeeekkkk..',
-  '......kkkkkk.....',
-  ],
-  [
-  '......kkkkkk.....',
-  '....kkbbbbbbkk...',
-  '...kbbbbbkwwwwk..',
-  '..kbbbbbbkwwwwwk.',
-  '.kbbbbbbbkwwwkwk.',
-  'kssssssbbkwwwwwk.',
-  'ksbbbbsbbbkkkkk..',
-  'ksbbbbsbbbkrrrrrk',
-  '.kssssbbbbrkkkkkk',
-  '..kkkkeeeekrrrrk.',
-  '....kkeeeeekkkk..',
-  '......kkkkkk.....',
-  ],
-  [
-  '......kkkkkk.....',
-  '....kkbbbbbbkk...',
-  '...kbbbbbkwwwwk..',
-  '..kbbbbbbkwwwwwk.',
-  '.kbbbbbbbkwwwkwk.',
-  'kbbbbbbbbkwwwwwk.',
-  'kbbbbbbbbbkkkkk..',
-  'kssssssbbbkrrrrrk',
-  '.ksbbbsbbbrkkkkkk',
-  '..kssseeeekrrrrk.',
-  '....kkeeeeekkkk..',
-  '......kkkkkk.....',
-  ],
+[
+'..........cc..............',
+'.........ckkc.............',
+'..........kbk.............',
+'.........kkbbkkkkk........',
+'........kbbbbbbbbbkk......',
+'.......kbbbbbbbbbbbbk.....',
+'.......kbbbbbbbgkwwwwk....',
+'.......kbbbbbbbbkwpwwwk...',
+'kk....kbbbbbbbbbkwwwwwk...',
+'kck...kbbbkkkkbbbkkkkkkkkk',
+'.kck.kbbbkaaaakbbbkrrrrrrk',
+'..kckkbbbkaaaakbbbbkddddk.',
+'...kckbbbbkkkkbbbbkkkkkk..',
+'....kkbbbbbbbeeeeebk......',
+'.....kkbbbeeeeeeeek.......',
+'.......kkkeeeeekkk........',
+'.........kkkkkk...........',
+'..........k...k...........',
+],
+[
+'..........cc..............',
+'.........ckkc.............',
+'..........kbk.............',
+'.........kkbbkkkkk........',
+'........kbbbbbbbbbkk......',
+'.......kbbbbbbbbbbbbk.....',
+'.......kbbbbbbbgkwwwwk....',
+'.......kbbbbbbbbkwpwwwk...',
+'kk....kbbbbbbbbbkwwwwwk...',
+'kck...kbbbbbbbbbbkkkkkkkkk',
+'.kck.kbbbkkkkkkbbbkrrrrrrk',
+'..kckkbbkaaaaaakbbbkddddk.',
+'...kckbbbkaaaakbbbbkkkkkk.',
+'....kkbbbbkkkkeeeeebk.....',
+'.....kkbbbeeeeeeeek.......',
+'.......kkkeeeeekkk........',
+'.........kkkkkk...........',
+'..........k...k...........',
+],
+[
+'..........cc..............',
+'.........ckkc.............',
+'..........kbk.............',
+'.........kkbbkkkkk........',
+'........kbbbbbbbbbkk......',
+'.......kbbbbbbbbbbbbk.....',
+'.......kbbbbbbbgkwwwwk....',
+'.......kbbbbbbbbkwpwwwk...',
+'kk....kbbbbbbbbbkwwwwwk...',
+'kck...kbbbbbbbbbbkkkkkkkkk',
+'.kck.kbbbbbbbbbbbbkrrrrrrk',
+'..kckkbbbbbbbbbbbbbkddddk.',
+'...kckbbbkkkkkkbbbbkkkkkk.',
+'....kkbbkaaaaaakeeeebk....',
+'.....kkbbkaaaakeeeeek.....',
+'.......kkkkkkkeeekkk......',
+'.........kkkkkk...........',
+'..........k...k...........',
+],
 ];
 
 // Decorações extras por design (desenhadas por cima do mapa, em escala 2)
 const DECO = {
   none: null,
-  // topete de três penas
+  // topete maior: mais duas penas para trás
   crest: (g, s, c) => {
-    g.fillStyle = '#000';
-    g.fillRect(7*s, -0*s, 1*s, 1*s);
+    g.fillStyle = '#1b1b2f';
+    g.fillRect(7*s, 1*s, 1*s, 1*s); g.fillRect(6*s, 2*s, 1*s, 1*s); g.fillRect(13*s, 0, 1*s, 1*s); g.fillRect(14*s, 1*s, 1*s, 1*s);
     g.fillStyle = c;
-    g.fillRect(6*s, 0*s, 2*s, 1*s); g.fillRect(8*s, 0*s, 1*s, 1*s); g.fillRect(5*s, 1*s, 1*s, 1*s);
-    g.fillRect(9*s, 1*s, 1*s, 1*s);
+    g.fillRect(8*s, 1*s, 1*s, 1*s); g.fillRect(7*s, 2*s, 1*s, 1*s); g.fillRect(8*s, 2*s, 1*s, 1*s);
+    g.fillRect(12*s, 0, 1*s, 1*s); g.fillRect(13*s, 1*s, 1*s, 1*s); g.fillRect(12*s, 1*s, 1*s, 1*s);
   },
-  // cauda longa de penas
+  // cauda longa: penas extras estendendo as três da base
   tail: (g, s, c) => {
+    g.fillStyle = '#1b1b2f';
+    g.fillRect(0, 7*s, 1*s, 1*s); g.fillRect(0, 11*s, 1*s, 1*s); g.fillRect(1*s, 13*s, 1*s, 1*s);
     g.fillStyle = c;
-    g.fillRect(0, 5*s, 1*s, 1*s); g.fillRect(0, 7*s, 1*s, 1*s);
-    g.fillStyle = '#000';
-    g.fillRect(0, 4*s, 1*s, 1*s); g.fillRect(0, 6*s, 1*s, 1*s); g.fillRect(0, 8*s, 1*s, 1*s);
+    g.fillRect(1*s, 7*s, 1*s, 1*s); g.fillRect(1*s, 8*s, 1*s, 1*s); g.fillRect(0, 12*s, 1*s, 1*s); g.fillRect(1*s, 12*s, 1*s, 1*s);
+    g.fillRect(2*s, 13*s, 1*s, 1*s); g.fillRect(3*s, 14*s, 1*s, 1*s);
   },
-  // óculos escuros
+  // óculos escuros sobre o olho
   shades: (g, s) => {
     g.fillStyle = '#111';
-    g.fillRect(9*s, 2*s, 6*s, 3*s);
+    g.fillRect(15*s, 6*s, 8*s, 3*s); g.fillRect(14*s, 7*s, 1*s, 1*s);
     g.fillStyle = '#4a6a9a';
-    g.fillRect(10*s, 3*s, 2*s, 1*s);
+    g.fillRect(17*s, 7*s, 3*s, 1*s);
   },
-  // estrelinhas brancas (pássaro noturno)
+  // estrelinhas no corpo (noturno)
   stars: (g, s) => {
     g.fillStyle = '#fff';
-    g.fillRect(3*s, 4*s, 1*s, 1*s); g.fillRect(6*s, 8*s, 1*s, 1*s); g.fillRect(2*s, 7*s, 1*s, 1*s);
+    g.fillRect(9*s, 6*s, 1*s, 1*s); g.fillRect(13*s, 5*s, 1*s, 1*s); g.fillRect(8*s, 13*s, 1*s, 1*s); g.fillRect(15*s, 9*s, 1*s, 1*s);
+    g.fillStyle = '#ffe680'; g.fillRect(11*s, 8*s, 1*s, 1*s);
   },
-  // coroa dourada
+  // coroa dourada no alto da cabeça (por cima do topete)
   crown: (g, s) => {
-    g.fillStyle = '#000';
-    g.fillRect(7*s, 0, 6*s, 1*s);
+    g.fillStyle = '#1b1b2f';
+    g.fillRect(8*s, 0, 8*s, 3*s);
     g.fillStyle = '#ffd52e';
-    g.fillRect(8*s, 0, 4*s, 1*s); g.fillRect(8*s, -1*s, 1*s, 1*s); g.fillRect(10*s, -1*s, 1*s, 1*s); g.fillRect(12*s, -1*s, 1*s, 1*s);
-    g.fillStyle = '#e04020'; g.fillRect(10*s, 0, 1*s, 1*s);
+    g.fillRect(9*s, 2*s, 6*s, 1*s); g.fillRect(9*s, 1*s, 1*s, 1*s); g.fillRect(11*s, 0, 2*s, 2*s); g.fillRect(14*s, 1*s, 1*s, 1*s);
+    g.fillStyle = '#e04020'; g.fillRect(11*s, 2*s, 2*s, 1*s);
   },
 };
 
@@ -186,25 +212,33 @@ const RARITY = {
   lendario: { label: 'LENDARIO', color: '#ffb020' },
 };
 
-function pal(body, shade, belly, beak = '#e04020', extra = {}) {
-  return Object.assign({ k: '#000000', b: body, s: shade, e: belly, w: '#ffffff', r: beak }, extra);
+// escurece uma cor hex (para o lado de baixo do bico)
+function darken(hex, f = 0.7) {
+  if (!hex.startsWith('#')) return hex;
+  const n = parseInt(hex.slice(1), 16);
+  const r = Math.round(((n >> 16) & 255) * f), g = Math.round(((n >> 8) & 255) * f), b = Math.round((n & 255) * f);
+  return `rgb(${r},${g},${b})`;
+}
+// pal(corpo, asa, barriga, bico, extras)
+function pal(body, wing, belly, beak = '#ff9a2e', extra = {}) {
+  return Object.assign({ k: '#1b1b2f', b: body, a: wing, e: belly, w: '#ffffff', p: '#1b1b2f', g: '#1b1b2f', r: beak, d: darken(beak), c: '#ff5e7a' }, extra);
 }
 
 // Catálogo da loja. Preço 0 = já vem desbloqueado.
 const BIRDS = [
-  { id: 'amarelo',  name: 'Amarelo',   rarity: 'comum',    price: 0,   pal: pal('#f8d030', '#d09020', '#f8f0a0') },
-  { id: 'azul',     name: 'Azul',      rarity: 'comum',    price: 25,  pal: pal('#4aa8ff', '#2a70c0', '#c8e8ff') },
-  { id: 'vermelho', name: 'Vermelho',  rarity: 'comum',    price: 25,  pal: pal('#e84040', '#a82020', '#ffc0b0', '#f8a020') },
-  { id: 'verde',    name: 'Verde',     rarity: 'comum',    price: 30,  pal: pal('#5ccc48', '#2f8a28', '#d0f0b0', '#f8a020') },
-  { id: 'roxo',     name: 'Topete',    rarity: 'raro',     price: 70,  pal: pal('#a060e0', '#6a30a0', '#e8d0ff', '#f8a020'), deco: 'crest', decoColor: '#ff60c0' },
-  { id: 'laranja',  name: 'Cauda',     rarity: 'raro',     price: 70,  pal: pal('#ff8c2a', '#c05a10', '#ffe0b0'), deco: 'tail', decoColor: '#ffd040' },
-  { id: 'neve',     name: 'Neve',      rarity: 'raro',     price: 90,  pal: pal('#f4f8ff', '#b8c8dc', '#ffffff', '#f8a020', { w: '#dfe8f5' }) },
-  { id: 'fogo',     name: 'Fogo',      rarity: 'epico',    price: 160, pal: pal('#ff5a1f', '#b02000', '#ffd040', '#ffe060'), deco: 'crest', decoColor: '#ffd040' },
-  { id: 'gelo',     name: 'Gelo',      rarity: 'epico',    price: 160, pal: pal('#9ae8ff', '#40a8d8', '#ffffff', '#3060c0'), deco: 'shades' },
-  { id: 'noturno',  name: 'Noturno',   rarity: 'epico',    price: 200, pal: pal('#2c2a5a', '#15133a', '#6a60c0', '#ffd040'), deco: 'stars' },
-  { id: 'dourado',  name: 'Dourado',   rarity: 'lendario', price: 350, pal: pal('#ffcf2e', '#c08a00', '#fff2a0', '#e04020'), deco: 'crown' },
-  { id: 'arcoiris', name: 'Arco-iris', rarity: 'lendario', price: 600, rainbow: true, pal: pal('#ff4040', '#c02020', '#ffffff') },
-  { id: 'chamas',   name: 'Em Chamas', rarity: 'lendario', price: 450, fire: true, pal: pal('#4a2a1a', '#2e1810', '#7a3a18', '#ffa020', { w: '#ffe0a0' }) },
+  { id: 'azul',     name: 'Hop',       rarity: 'comum',    price: 0,   pal: pal('#2fb8c6', '#8fe6ee', '#d8f6f8', '#ff9a2e', { c: '#ff5e7a' }) },
+  { id: 'amarelo',  name: 'Amarelo',   rarity: 'comum',    price: 25,  pal: pal('#f8d030', '#fff0a0', '#fff8d0', '#ff7a2e', { c: '#ff9a2e' }) },
+  { id: 'vermelho', name: 'Vermelho',  rarity: 'comum',    price: 25,  pal: pal('#e84040', '#ff9a90', '#ffd0c8', '#ffb020', { c: '#ffd040' }) },
+  { id: 'verde',    name: 'Verde',     rarity: 'comum',    price: 30,  pal: pal('#5ccc48', '#b8f0a0', '#e0f8d0', '#ff9a2e', { c: '#ff5e7a' }) },
+  { id: 'roxo',     name: 'Topete',    rarity: 'raro',     price: 70,  pal: pal('#a060e0', '#d8b8ff', '#ece0ff', '#ffb020', { c: '#ff60c0' }), deco: 'crest', decoColor: '#ff60c0' },
+  { id: 'laranja',  name: 'Cauda',     rarity: 'raro',     price: 70,  pal: pal('#ff8c2a', '#ffc890', '#ffe4c0', '#ffd23a', { c: '#3fb8ff' }), deco: 'tail', decoColor: '#3fb8ff' },
+  { id: 'neve',     name: 'Neve',      rarity: 'raro',     price: 90,  pal: pal('#f4f8ff', '#ffffff', '#ffffff', '#ff9a2e', { w: '#e4ecf8', c: '#9ad8ff' }) },
+  { id: 'fogo',     name: 'Fogo',      rarity: 'epico',    price: 160, pal: pal('#ff5a1f', '#ffb040', '#ffe080', '#ffe060', { c: '#ffd040' }), deco: 'crest', decoColor: '#ffd040' },
+  { id: 'gelo',     name: 'Gelo',      rarity: 'epico',    price: 160, pal: pal('#9ae8ff', '#d8f8ff', '#ffffff', '#3060c0', { c: '#ffffff' }), deco: 'shades' },
+  { id: 'noturno',  name: 'Noturno',   rarity: 'epico',    price: 200, pal: pal('#2c2a5a', '#5a56a0', '#8a80d0', '#ffd040', { c: '#ffd040' }), deco: 'stars' },
+  { id: 'dourado',  name: 'Dourado',   rarity: 'lendario', price: 350, pal: pal('#ffcf2e', '#fff2a0', '#fff8d0', '#e04020', { c: '#ffd52e' }), deco: 'crown' },
+  { id: 'arcoiris', name: 'Arco-iris', rarity: 'lendario', price: 600, rainbow: true, pal: pal('#ff4040', '#ffa0a0', '#ffffff') },
+  { id: 'chamas',   name: 'Em Chamas', rarity: 'lendario', price: 450, fire: true, pal: pal('#4a2a1a', '#7a4a2a', '#8a4a20', '#ffa020', { w: '#ffe0a0', c: '#ff6a20' }) },
 ];
 // Desbloqueio para demonstração (fica vazio na versão normal)
 const DEMO_UNLOCK = [];
@@ -220,7 +254,7 @@ for (const def of BIRDS) {
     def.rainbowFrames = [];
     for (let i = 0; i < 12; i++) {
       const h = i * 30;
-      def.rainbowFrames.push(buildBirdFrames(def, pal(`hsl(${h},95%,58%)`, `hsl(${h},85%,38%)`, `hsl(${h},90%,88%)`, `hsl(${(h+180)%360},90%,55%)`)));
+      def.rainbowFrames.push(buildBirdFrames(def, pal(`hsl(${h},95%,58%)`, `hsl(${h},95%,78%)`, `hsl(${h},90%,92%)`, `hsl(${(h+180)%360},90%,55%)`, { c: `hsl(${(h+120)%360},95%,60%)`, d: `hsl(${(h+180)%360},90%,38%)` })));
     }
     def.frames = def.rainbowFrames[0];
   } else {
@@ -532,12 +566,16 @@ function drawNumber(n, cx, y, digits, dw, align = 'center') {
   for (const ch of s) { ctx.drawImage(digits[ch], Math.round(x), y); x += dw + 2; }
 }
 
+// Fonte de pixel (Press Start 2P, licença OFL). É mais larga que a fonte antiga,
+// então o tamanho pedido é reduzido para caber nos mesmos espaços.
+const PIXEL_FONT = '"Press Start 2P", "Courier New", monospace';
 function pixelText(text, x, y, size, fill, stroke, align = 'center') {
+  const px = Math.max(6, Math.round(size * 0.72));
   ctx.save();
-  ctx.font = `bold ${size}px "Courier New", monospace`;
+  ctx.font = `${px}px ${PIXEL_FONT}`;
   ctx.textAlign = align;
   ctx.textBaseline = 'top';
-  ctx.lineWidth = size >= 12 ? 4 : 3; ctx.lineJoin = 'round';
+  ctx.lineWidth = px >= 16 ? 4 : px >= 9 ? 3 : 2; ctx.lineJoin = 'round';
   ctx.strokeStyle = stroke; ctx.strokeText(text, x, y);
   ctx.fillStyle = fill; ctx.fillText(text, x, y);
   ctx.restore();
@@ -683,7 +721,7 @@ function medal(x, y, kind) {
   ctx.fillStyle = colors[0]; ctx.beginPath(); ctx.arc(x, y, 21, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = colors[2]; ctx.beginPath(); ctx.arc(x, y, 16, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = colors[0]; ctx.beginPath(); ctx.arc(x, y, 14, 0, Math.PI * 2); ctx.fill();
-  ctx.drawImage(BIRDS[0].frames[1], 0, 0, 34, 24, x - 12, y - 8, 24, 17);
+  ctx.drawImage(BIRDS[0].frames[1], 0, 0, BIRD_W, BIRD_H, x - 13, y - 9, 26, 18);
   ctx.fillStyle = colors[1];
   ctx.fillRect(x - 15, y - 9, 3, 3); ctx.fillRect(x + 12, y + 6, 3, 3);
   ctx.fillRect(x + 10, y - 13, 2, 2);
@@ -846,9 +884,9 @@ function emitFire(list, b, wind, rate = 1) {
       list[list.length - 1].max = list[list.length - 1].life;
     }
   };
-  spawn(-BIRD_W / 2 + 3, 0, Math.round(4 * rate), true);   // costas
-  spawn(-BIRD_W / 2 + 6, -5, Math.round(1 * rate), true);
-  spawn(2, -BIRD_H / 2 + 1, Math.random() < 0.7 * rate ? 1 : 0, false); // topo da cabeça
+  spawn(-BIRD_W / 2 + 10, 4, Math.round(4 * rate), true);   // costas
+  spawn(-BIRD_W / 2 + 14, -3, Math.round(1 * rate), true);
+  spawn(-2, -BIRD_H / 2 + 2, Math.random() < 0.7 * rate ? 1 : 0, false); // topo da cabeça
 }
 
 function updateFire(list) {
@@ -883,14 +921,14 @@ let shopFire = [];    // chamas da prévia na loja
 // ---------------------------------------------------------------------------
 // Dados salvos (recorde, moedas, pássaros comprados, pássaro escolhido)
 // ---------------------------------------------------------------------------
-const save = { best: 0, coins: 0, owned: ['amarelo'], selected: 'amarelo', ownedScenes: ['dia'], scene: 'dia', birdBest: {}, sceneBest: {}, claimed: {}, stats: { totalPipes: 0, totalCoins: 0, games: 0 }, sound: true, music: true };
+const save = { best: 0, coins: 0, owned: ['azul'], selected: 'azul', ownedScenes: ['dia'], scene: 'dia', birdBest: {}, sceneBest: {}, claimed: {}, stats: { totalPipes: 0, totalCoins: 0, games: 0 }, sound: true, music: true };
 try {
-  const raw = JSON.parse(localStorage.getItem('flappy-save') || 'null');
+  const raw = JSON.parse(localStorage.getItem('skyhop-save') || localStorage.getItem('flappy-save') || 'null');
   if (raw) Object.assign(save, raw);
   const legacyBest = parseInt(localStorage.getItem('flappy-best') || '0', 10) || 0;
   if (legacyBest > save.best) save.best = legacyBest;
 } catch (e) {}
-if (!save.owned.includes('amarelo')) save.owned.push('amarelo');
+if (!save.owned.includes('azul')) save.owned.push('azul');
 for (const id of DEMO_UNLOCK) if (!save.owned.includes(id)) save.owned.push(id);
 if (!save.ownedScenes.includes('dia')) save.ownedScenes.push('dia');
 for (const id of DEMO_UNLOCK_SCENES) if (!save.ownedScenes.includes(id)) save.ownedScenes.push(id);
@@ -901,8 +939,8 @@ if (!save.claimed) save.claimed = {};
 if (!save.stats) save.stats = { totalPipes: 0, totalCoins: 0, games: 0 };
 if (save.sound === undefined) save.sound = true;
 if (save.music === undefined) save.music = true;
-if (!BIRDS.some(b => b.id === save.selected)) save.selected = 'amarelo';
-function persist() { try { localStorage.setItem('flappy-save', JSON.stringify(save)); } catch (e) {} }
+if (!BIRDS.some(b => b.id === save.selected)) save.selected = 'azul';
+function persist() { try { localStorage.setItem('skyhop-save', JSON.stringify(save)); } catch (e) {} }
 function currentBird() { return BIRDS.find(b => b.id === save.selected) || BIRDS[0]; }
 function currentScene() { return SCENES.find(s => s.id === save.scene) || SCENES[0]; }
 
@@ -926,7 +964,7 @@ let modal = null;               // popup de confirmação de compra
 let popups = [];                // "+1" flutuando ao pegar moeda
 
 function resetBird() {
-  bird = { x: BIRD_X, y: 220, vy: 0, rot: 0, frame: 0, animT: 0 };
+  bird = { x: BIRD_X - 6, y: 214, vy: 0, rot: 0, frame: 0, animT: 0 };
 }
 
 function resetRun() { resetBird(); pipes = []; score = 0; groundX = 0; runCoins = 0; pipeIndex = 0; popups = []; fire = []; shieldOn = false; invuln = 0; magnetT = 0; slowT = 0; lastPowerPipe = -99; }
@@ -1142,7 +1180,7 @@ window.addEventListener('contextmenu', e => e.preventDefault());
 // ---------------------------------------------------------------------------
 // Atualização
 // ---------------------------------------------------------------------------
-function birdBox() { return { x: bird.x + 4, y: bird.y + 4, w: BIRD_W - 8, h: BIRD_H - 8 }; }
+function birdBox() { return { x: bird.x + 12, y: bird.y + 8, w: BIRD_W - 18, h: BIRD_H - 14 }; }
 
 // devolve 'ground', 'pipe' ou null
 function collides() {
@@ -1268,7 +1306,7 @@ function update() {
     const i = BIRDS.findIndex(b => b.fire);
     if (i >= 0) {
       const r = shopCell(i);
-      const pb = { x: r.x + r.w / 2 - BIRD_W / 2, y: r.y + 17, rot: 0, vy: 0 };
+      const pb = { x: r.x + r.w / 2 - BIRD_W / 2, y: r.y + 11, rot: 0, vy: 0 };
       emitFire(shopFire, pb, 0.6, 0.5);
     }
     updateFire(shopFire);
@@ -1281,7 +1319,7 @@ function update() {
     case STATE.RANK:
     case STATE.QUESTS:
       groundX = (groundX - PIPE_SPEED) % GROUND_TILE_W;
-      bird.y = 220 + Math.sin(frames / 8) * 5;
+      bird.y = 214 + Math.sin(frames / 8) * 5;
       bird.rot = 0;
       animateBird(6);
       break;
@@ -1494,7 +1532,7 @@ function drawQuests() {
     if (i % 2) { ctx.fillStyle = 'rgba(0,0,0,0.06)'; ctx.fillRect(px + 6, y - 2, pw - 12, rowH); }
     if (isBirds) {
       ctx.save(); ctx.globalAlpha = owned ? 1 : 0.45;
-      ctx.drawImage(birdSprite(it, 1), 0, 0, BIRD_W, BIRD_H, px + 10, y, 24, 17);
+      ctx.drawImage(birdSprite(it, 1), 0, 0, BIRD_W, BIRD_H, px + 8, y - 1, 29, 20);
       ctx.restore();
     } else {
       const a = sceneAssets(it);
@@ -1547,7 +1585,7 @@ function drawRank() {
     // ícone
     if (isBirds) {
       ctx.save(); ctx.globalAlpha = owned ? 1 : 0.45;
-      ctx.drawImage(birdSprite(it, 1), 0, 0, BIRD_W, BIRD_H, px + 30, y, 24, 17);
+      ctx.drawImage(birdSprite(it, 1), 0, 0, BIRD_W, BIRD_H, px + 28, y - 1, 29, 20);
       ctx.restore();
     } else {
       const a = sceneAssets(it);
@@ -1577,9 +1615,9 @@ function drawModal() {
   // prévia do item
   const py = MODAL.y + 36;
   if (kind === 'bird') {
-    ctx.fillStyle = '#543847'; ctx.fillRect(W / 2 - 30, py, 60, 44);
-    ctx.fillStyle = '#4ec0ca'; ctx.fillRect(W / 2 - 28, py + 2, 56, 40);
-    ctx.drawImage(birdSprite(item, [0, 1, 2, 1][bird.frame]), W / 2 - BIRD_W / 2, py + 10);
+    ctx.fillStyle = '#543847'; ctx.fillRect(W / 2 - 32, py, 64, 44);
+    ctx.fillStyle = '#4ec0ca'; ctx.fillRect(W / 2 - 30, py + 2, 60, 40);
+    ctx.drawImage(birdSprite(item, [0, 1, 2, 1][bird.frame]), W / 2 - BIRD_W / 2, py + 4);
   } else {
     const a = sceneAssets(item);
     ctx.fillStyle = '#543847'; ctx.fillRect(W / 2 - 40, py, 80, 44);
@@ -1623,7 +1661,7 @@ function drawShop() {
     ctx.fillStyle = rar.color; ctx.fillRect(r.x, r.y, r.w, r.h);
     ctx.fillStyle = owned ? '#f5f0c0' : '#ded895'; ctx.fillRect(r.x + 3, r.y + 3, r.w - 6, r.h - 6);
     pixelText(rar.label, r.x + r.w / 2, r.y + 4, 8, rar.color, '#543847');
-    const preview = { x: r.x + r.w / 2 - BIRD_W / 2, y: r.y + 17 + (sel ? Math.sin(frames / 8) * 2 : 0), rot: 0, frame: bird.frame };
+    const preview = { x: r.x + r.w / 2 - BIRD_W / 2, y: r.y + 11 + (sel ? Math.sin(frames / 8) * 2 : 0), rot: 0, frame: bird.frame };
     if (!owned) ctx.globalAlpha = 0.55;
     drawBird(def, preview);
     ctx.globalAlpha = 1;
@@ -1683,7 +1721,8 @@ function drawScene(sc) {
 
   if (state === STATE.SPLASH) {
     drawGround();
-    pixelText('Flappy Bird', W / 2, 110, 34, '#ffffff', '#543847');
+    pixelText('SKYHOP', W / 2, 104, 40, '#ffffff', '#543847');
+    pixelText('toque para voar', W / 2, 140, 10, '#f5f0c0', '#543847');
     ctx.save(); ctx.translate(0, -20); drawBird(); ctx.restore();
     drawButton(BTN_START, 'START');
     drawButton(BTN_SHOP, 'LOJA', '#6aa8ff', '#a8ccff', '#3a70c0');

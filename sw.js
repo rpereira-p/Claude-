@@ -1,7 +1,7 @@
 // Service worker: deixa o jogo disponível offline depois da primeira visita.
 // Estratégia "rede primeiro": com internet, sempre pega a versão mais nova;
 // sem internet, usa o que está em cache.
-const CACHE = 'flappy-v2';
+const CACHE = 'skyhop-v3';
 const FILES = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {

@@ -1,7 +1,7 @@
 {
-  "name": "Flappy Bird",
-  "short_name": "Flappy",
-  "description": "Clone do jogo Flappy Bird: toque para voar e passe entre os canos.",
+  "name": "Skyhop",
+  "short_name": "Skyhop",
+  "description": "Skyhop: toque para voar, desvie dos obstáculos, colete moedas e desbloqueie pássaros e cenários.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "fullscreen",
