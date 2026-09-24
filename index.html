@@ -57,7 +57,7 @@ const COINS_PER_BLOCK = 10;    // moedas distribuídas...
 const PIPES_PER_BLOCK = 30;    // ...a cada 30 canos
 const COIN_R = 7;
 
-const STATE = { SPLASH: 0, READY: 1, PLAY: 2, DEAD: 3, SHOP: 4, RANK: 5, QUESTS: 6 };
+const STATE = { SPLASH: 0, READY: 1, PLAY: 2, DEAD: 3, SHOP: 4, RANK: 5, QUESTS: 6, PAUSED: 7, RESUME: 8 };
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -638,6 +638,7 @@ function audio() {
   return audioCtx;
 }
 function tone(freqFrom, freqTo, dur, type = 'square', vol = 0.12, delay = 0) {
+  if (!save.sound) return;
   const a = audio(); if (!a) return;
   const o = a.createOscillator(), g = a.createGain();
   const t = a.currentTime + delay;
@@ -650,6 +651,7 @@ function tone(freqFrom, freqTo, dur, type = 'square', vol = 0.12, delay = 0) {
   o.start(t); o.stop(t + dur + 0.02);
 }
 function noise(dur, vol = 0.2, delay = 0) {
+  if (!save.sound) return;
   const a = audio(); if (!a) return;
   const n = a.sampleRate * dur, buf = a.createBuffer(1, n, a.sampleRate), d = buf.getChannelData(0);
   for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
@@ -667,6 +669,82 @@ const SFX = {
   die:   () => tone(400, 80, 0.4, 'square', 0.1, 0.15),
   swoosh:() => noise(0.12, 0.08),
 };
+
+// ---------------------------------------------------------------------------
+// Música: sequenciador chiptune (melodia + baixo) tocado pelo WebAudio.
+// Duas faixas: menu (calma) e jogo (rápida). No jogo o andamento acompanha a
+// velocidade dos canos. Nada de arquivos: tudo é sintetizado.
+// ---------------------------------------------------------------------------
+const NOTE = n => n === null ? null : 440 * Math.pow(2, (n - 69) / 12); // MIDI -> Hz
+// Melodias próprias, notas MIDI (null = pausa). Cada item é uma colcheia.
+const MUSIC = {
+  menu: {
+    bpm: 96,
+    lead: [72,null,76,null,79,null,76,null, 69,null,72,null,76,null,72,null, 65,null,69,null,72,null,69,null, 67,null,71,null,74,null,71,null,
+           72,null,76,null,79,null,84,null, 81,null,79,null,76,null,72,null, 65,null,69,null,72,null,77,null, 74,null,71,null,67,null,null,null],
+    bass: [48,null,null,null,55,null,null,null, 45,null,null,null,52,null,null,null, 41,null,null,null,48,null,null,null, 43,null,null,null,50,null,null,null,
+           48,null,null,null,55,null,null,null, 45,null,null,null,52,null,null,null, 41,null,null,null,48,null,null,null, 43,null,43,null,43,null,null,null],
+    leadType: 'triangle', leadVol: 0.05, bassVol: 0.05,
+  },
+  play: {
+    bpm: 132,
+    lead: [76,79,81,79,76,74,72,74, 76,76,79,81,83,81,79,76, 74,76,79,76,74,72,69,72, 74,76,74,72,74,76,79,null,
+           81,79,76,79,81,83,84,83, 81,79,76,74,72,74,76,79, 77,76,74,77,76,74,72,69, 71,72,74,76,74,72,71,null],
+    bass: [48,48,55,55,45,45,52,52, 41,41,48,48,43,43,43,43, 48,48,55,55,45,45,52,52, 41,41,48,48,43,43,50,50,
+           45,45,52,52,41,41,48,48, 43,43,50,50,55,55,55,55, 41,41,48,48,43,43,50,50, 43,43,43,43,55,55,55,55],
+    leadType: 'square', leadVol: 0.035, bassVol: 0.045,
+  },
+};
+const music = { track: null, step: 0, nextTime: 0, timer: null, gain: null };
+function musicGain() {
+  const a = audio(); if (!a) return null;
+  if (!music.gain) { music.gain = a.createGain(); music.gain.gain.value = 1; music.gain.connect(a.destination); }
+  return music.gain;
+}
+function playNote(freq, t, dur, type, vol) {
+  const a = audioCtx, g = musicGain(); if (!a || !g || freq === null) return;
+  const o = a.createOscillator(), e = a.createGain();
+  o.type = type; o.frequency.value = freq;
+  e.gain.setValueAtTime(vol, t);
+  e.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(e); e.connect(g);
+  o.start(t); o.stop(t + dur + 0.01);
+}
+// agenda as próximas colcheias com 120 ms de antecedência (evita engasgos)
+function musicTick() {
+  const a = audioCtx, tr = MUSIC[music.track];
+  if (!a || !tr || !save.music) return;
+  const tempo = music.track === 'play' ? tr.bpm * (speed() / PIPE_SPEED) : tr.bpm;
+  const stepDur = 60 / tempo / 2;
+  while (music.nextTime < a.currentTime + 0.12) {
+    const i = music.step % tr.lead.length;
+    playNote(NOTE(tr.lead[i]), music.nextTime, stepDur * 0.9, tr.leadType, tr.leadVol);
+    playNote(NOTE(tr.bass[i]), music.nextTime, stepDur * 0.8, 'triangle', tr.bassVol);
+    music.nextTime += stepDur;
+    music.step++;
+  }
+}
+function startMusic(track) {
+  if (music.track === track && music.timer) return;
+  stopMusic();
+  if (!save.music) { music.track = track; return; }     // lembra qual tocar quando ligar
+  const a = audio(); if (!a) { music.track = track; return; }
+  music.track = track; music.step = 0; music.nextTime = a.currentTime + 0.05;
+  music.timer = setInterval(musicTick, 50);
+}
+function stopMusic() {
+  if (music.timer) clearInterval(music.timer);
+  music.timer = null;
+}
+function musicFor(st) {
+  return (st === STATE.PLAY || st === STATE.RESUME) ? 'play' : (st === STATE.DEAD || st === STATE.PAUSED) ? null : 'menu';
+}
+function syncMusic() {
+  const want = musicFor(state);
+  if (!want) { stopMusic(); music.track = null; return; }
+  if (!save.music) { stopMusic(); music.track = want; return; }
+  if (music.track !== want || !music.timer) startMusic(want);
+}
 
 // ---------------------------------------------------------------------------
 // Fogo: sistema de partículas com física
@@ -744,7 +822,7 @@ let shopFire = [];    // chamas da prévia na loja
 // ---------------------------------------------------------------------------
 // Dados salvos (recorde, moedas, pássaros comprados, pássaro escolhido)
 // ---------------------------------------------------------------------------
-const save = { best: 0, coins: 0, owned: ['amarelo'], selected: 'amarelo', ownedScenes: ['dia'], scene: 'dia', birdBest: {}, sceneBest: {}, claimed: {}, stats: { totalPipes: 0, totalCoins: 0, games: 0 } };
+const save = { best: 0, coins: 0, owned: ['amarelo'], selected: 'amarelo', ownedScenes: ['dia'], scene: 'dia', birdBest: {}, sceneBest: {}, claimed: {}, stats: { totalPipes: 0, totalCoins: 0, games: 0 }, sound: true, music: true };
 try {
   const raw = JSON.parse(localStorage.getItem('flappy-save') || 'null');
   if (raw) Object.assign(save, raw);
@@ -760,6 +838,8 @@ if (!save.birdBest) save.birdBest = {};
 if (!save.sceneBest) save.sceneBest = {};
 if (!save.claimed) save.claimed = {};
 if (!save.stats) save.stats = { totalPipes: 0, totalCoins: 0, games: 0 };
+if (save.sound === undefined) save.sound = true;
+if (save.music === undefined) save.music = true;
 if (!BIRDS.some(b => b.id === save.selected)) save.selected = 'amarelo';
 function persist() { try { localStorage.setItem('flappy-save', JSON.stringify(save)); } catch (e) {} }
 function currentBird() { return BIRDS.find(b => b.id === save.selected) || BIRDS[0]; }
@@ -772,6 +852,9 @@ let state = STATE.SPLASH;
 let frames = 0;
 let bird, pipes, score, groundX, deadTimer, panelY, flashAlpha, newBest, newStar = false;
 let questsWon = [], questTotal = 0, questTab = 'birds';
+let shake = 0;                  // tremor de tela (frames restantes)
+let sparks = [];                // faíscas ao pegar moeda
+let resumeTimer = 0;            // contagem regressiva ao voltar da pausa
 let rankTab = 'birds';
 let runCoins = 0;               // moedas pegas nesta partida
 let pipeIndex = 0;              // quantos canos já foram criados nesta partida
@@ -845,8 +928,18 @@ function die() {
   questTotal = questsWon.reduce((a, q) => a + q.reward, 0);
   persist();
   SFX.hit();
+  shake = 18;
   if (bird.y < GROUND_Y - BIRD_H) SFX.die();
 }
+
+// ---------------------------------------------------------------------------
+// Pausa: manual (botão) ou automática quando o app perde o foco.
+// Ao voltar, conta 3-2-1 para o jogador se preparar.
+// ---------------------------------------------------------------------------
+function pauseGame() { if (state !== STATE.PLAY) return; state = STATE.PAUSED; syncMusic(); }
+function resumeGame() { if (state !== STATE.PAUSED) return; state = STATE.RESUME; resumeTimer = 90; syncMusic(); }
+document.addEventListener('visibilitychange', () => { if (document.hidden) pauseGame(); });
+window.addEventListener('blur', pauseGame);
 
 // ---------------------------------------------------------------------------
 // Layout de botões e loja (usado tanto para desenhar quanto para o toque)
@@ -855,6 +948,11 @@ const BTN_START = { x: W / 2 - 52, y: 298, w: 104, h: 30 };
 const BTN_SHOP  = { x: W / 2 - 108, y: 334, w: 104, h: 30 };
 const BTN_RANK  = { x: W / 2 + 4,   y: 334, w: 104, h: 30 };
 const BTN_QUEST = { x: W / 2 - 52,  y: 370, w: 104, h: 30 };
+const BTN_SOUND = { x: W - 62, y: 6, w: 26, h: 26 };
+const BTN_MUSIC = { x: W - 32, y: 6, w: 26, h: 26 };
+const BTN_PAUSE = { x: W - 34, y: 8, w: 26, h: 26 };
+const BTN_RESUME = { x: W / 2 - 60, y: 262, w: 120, h: 34 };
+const BTN_MENU   = { x: W / 2 - 60, y: 304, w: 120, h: 34 };
 const MODAL = { x: 24, y: 150, w: 240, h: 200 };
 const BTN_BUY    = { x: MODAL.x + 16,  y: MODAL.y + MODAL.h - 46, w: 100, h: 32 };
 const BTN_CANCEL = { x: MODAL.x + 124, y: MODAL.y + MODAL.h - 46, w: 100, h: 32 };
@@ -885,6 +983,8 @@ function input(pt) {
   audio();
   switch (state) {
     case STATE.SPLASH:
+      if (inside(pt, BTN_SOUND)) { save.sound = !save.sound; persist(); SFX.swoosh(); break; }
+      if (inside(pt, BTN_MUSIC)) { save.music = !save.music; persist(); syncMusic(); SFX.swoosh(); break; }
       if (inside(pt, BTN_SHOP)) goShop(); else if (inside(pt, BTN_RANK)) goRank(); else if (inside(pt, BTN_QUEST)) goQuests(); else goReady();
       break;
     case STATE.QUESTS:
@@ -897,7 +997,14 @@ function input(pt) {
       if (inside(pt, TAB_SCENES)) { rankTab = 'scenes'; SFX.swoosh(); }
       break;
     case STATE.READY:  goPlay(); break;
-    case STATE.PLAY:   flap(); break;
+    case STATE.PLAY:
+      if (inside(pt, BTN_PAUSE)) pauseGame(); else flap();
+      break;
+    case STATE.PAUSED:
+      if (inside(pt, BTN_MENU)) { goSplash(); break; }
+      if (!pt || inside(pt, BTN_RESUME)) resumeGame();
+      break;
+    case STATE.RESUME: break;
     case STATE.DEAD:
       if (deadTimer > 60) goSplash();
       break;
@@ -946,7 +1053,12 @@ function modalTap(pt) {
 }
 window.addEventListener('keydown', e => {
   if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW' || e.code === 'Enter') { e.preventDefault(); input(null); }
-  if (e.code === 'Escape') { if (modal) modal = null; else if (state === STATE.SHOP || state === STATE.RANK || state === STATE.QUESTS) goSplash(); }
+  if (e.code === 'Escape' || e.code === 'KeyP') {
+    if (modal) modal = null;
+    else if (state === STATE.PLAY) pauseGame();
+    else if (state === STATE.PAUSED) resumeGame();
+    else if (state === STATE.SHOP || state === STATE.RANK || state === STATE.QUESTS) goSplash();
+  }
 });
 canvas.addEventListener('pointerdown', e => {
   e.preventDefault();
@@ -981,6 +1093,7 @@ function collectCoins() {
     const nx = Math.max(b.x, Math.min(c.x, b.x + b.w)), ny = Math.max(b.y, Math.min(c.y, b.y + b.h));
     if ((nx - c.x) ** 2 + (ny - c.y) ** 2 <= COIN_R * COIN_R) {
       p.coinTaken = true; runCoins++; save.coins++; save.stats.totalCoins++;
+      for (let i = 0; i < 8; i++) sparks.push({ x: c.x, y: c.y, vx: rnd(-2.2, 2.2), vy: rnd(-2.6, 0.6), t: rnd(14, 26) });
       popups.push({ x: c.x, y: c.y, t: 40 });
       SFX.coin();
     }
@@ -1008,15 +1121,20 @@ function update() {
   popups = popups.filter(q => q.t > 0);
   if (shopMsg && --shopMsg.t <= 0) shopMsg = null;
   if (modal) modal.t++;
+  if (shake > 0) shake--;
+  for (const q of sparks) { q.x += q.vx; q.y += q.vy; q.vy += 0.15; q.t--; }
+  sparks = sparks.filter(q => q.t > 0);
+  if (frames % 15 === 0) syncMusic();
+  if (state === STATE.RESUME && --resumeTimer <= 0) state = STATE.PLAY;
 
   // fogo do pássaro em uso (em todas as telas onde ele aparece)
-  if (currentBird().fire && state !== STATE.SHOP && state !== STATE.RANK && state !== STATE.QUESTS) {
+  if (currentBird().fire && state !== STATE.SHOP && state !== STATE.RANK && state !== STATE.QUESTS && state !== STATE.PAUSED) {
     const wind = state === STATE.PLAY ? speed() : state === STATE.DEAD ? 0 : PIPE_SPEED;
     const onGround = state === STATE.DEAD && bird.y >= GROUND_Y - BIRD_H;
     emitFire(fire, bird, wind, onGround ? 0.6 : 1);
   }
   updateFire(fire);
-  updateAmbient(currentScene(), state === STATE.PLAY ? speed() : state === STATE.DEAD ? 0 : PIPE_SPEED);
+  if (state !== STATE.PAUSED) updateAmbient(currentScene(), state === STATE.PLAY ? speed() : (state === STATE.DEAD || state === STATE.RESUME) ? 0 : PIPE_SPEED);
   // prévia da loja
   if (state === STATE.SHOP) {
     const i = BIRDS.findIndex(b => b.fire);
@@ -1360,8 +1478,34 @@ function drawShopOverlay() {
   if (modal) drawModal();
 }
 
+function drawSoundButtons() {
+  drawButton(BTN_SOUND, '', save.sound ? '#6aa8ff' : '#8a7a60', save.sound ? '#a8ccff' : '#a89880', save.sound ? '#3a70c0' : '#5a4e3c');
+  drawButton(BTN_MUSIC, '', save.music ? '#6aa8ff' : '#8a7a60', save.music ? '#a8ccff' : '#a89880', save.music ? '#3a70c0' : '#5a4e3c');
+  // alto-falante
+  let x = BTN_SOUND.x + 7, y = BTN_SOUND.y + 8;
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(x, y + 3, 3, 4); ctx.fillRect(x + 3, y + 1, 3, 8); ctx.fillRect(x + 6, y - 1, 1, 12);
+  if (save.sound) { ctx.fillRect(x + 9, y + 3, 1, 4); ctx.fillRect(x + 11, y + 1, 1, 8); }
+  else { ctx.fillStyle = '#ff6060'; ctx.fillRect(x + 8, y + 1, 2, 2); ctx.fillRect(x + 10, y + 3, 2, 2); ctx.fillRect(x + 12, y + 5, 2, 2); ctx.fillRect(x + 12, y + 1, 2, 2); ctx.fillRect(x + 8, y + 5, 2, 2); }
+  // nota musical
+  x = BTN_MUSIC.x + 8; y = BTN_MUSIC.y + 6;
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(x + 4, y, 2, 10); ctx.fillRect(x + 4, y, 6, 2); ctx.fillRect(x + 8, y, 2, 6); ctx.fillRect(x + 1, y + 9, 5, 3); ctx.fillRect(x + 6, y + 6, 4, 3);
+  if (!save.music) { ctx.fillStyle = '#ff6060'; for (let i = 0; i < 6; i++) ctx.fillRect(x + i * 2, y + 12 - i * 2, 2, 2); }
+}
+
+function drawPauseButton() {
+  drawButton(BTN_PAUSE, '', '#f5a623', '#fbd36b', '#c47e12');
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(BTN_PAUSE.x + 8, BTN_PAUSE.y + 7, 4, 12); ctx.fillRect(BTN_PAUSE.x + 15, BTN_PAUSE.y + 7, 4, 12);
+}
+
 function draw() {
   const sc = currentScene();
+  ctx.save();
+  if (shake > 0) ctx.translate(Math.round(rnd(-1, 1) * shake * 0.4), Math.round(rnd(-1, 1) * shake * 0.4));
+  drawScene(sc);
+  ctx.restore();
+}
+
+function drawScene(sc) {
   ctx.drawImage(sceneAssets(sc).bg, 0, 0);
   drawAmbient(sc);
 
@@ -1374,6 +1518,7 @@ function draw() {
     drawButton(BTN_RANK, 'RANKING', '#b070e8', '#d8b0ff', '#7a40b0');
     drawButton(BTN_QUEST, 'DESAFIOS', '#4cc07a', '#9ae8b4', '#2a8a4e');
     drawCoinHud(10, 10, save.coins);
+    drawSoundButtons();
     if (save.best > 0) {
       pixelText('RECORDE', W / 2, 50, 12, '#ffffff', '#543847');
       drawNumber(save.best, W / 2, 66, smallDigits, SMALL_DW);
@@ -1398,9 +1543,29 @@ function draw() {
     pixelText('TOQUE', W / 2 + 40, 236, 12, '#ffffff', '#543847');
   }
 
-  if (state === STATE.PLAY) {
+  // faíscas das moedas
+  for (const q of sparks) { ctx.fillStyle = q.t % 6 < 3 ? '#ffe97a' : '#ffcc1e'; ctx.fillRect(Math.round(q.x), Math.round(q.y), 2, 2); }
+
+  if (state === STATE.PLAY || state === STATE.PAUSED || state === STATE.RESUME) {
     drawNumber(score, W / 2, 50, bigDigits, BIG_DW);
     drawCoinHud(10, 10, save.coins);
+    drawPauseButton();
+  }
+  if (state === STATE.PAUSED) {
+    ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0, 0, W, H);
+    pixelText('PAUSADO', W / 2, 150, 30, '#ffffff', '#543847');
+    panel(W / 2 - 80, 200, 160, 150);
+    pixelText('PLACAR', W / 2, 214, 12, '#f5a623', '#543847');
+    drawNumber(score, W / 2, 230, bigDigits, BIG_DW);
+    drawButton(BTN_RESUME, 'CONTINUAR', '#4cc07a', '#9ae8b4', '#2a8a4e', 13);
+    drawButton(BTN_MENU, 'MENU', '#e05a4a', '#ffa090', '#a03020', 13);
+  }
+  if (state === STATE.RESUME) {
+    const n = Math.ceil(resumeTimer / 30);
+    const k = 1 + ((resumeTimer % 30) / 30) * 0.6;
+    ctx.save(); ctx.translate(W / 2, 200); ctx.scale(k, k);
+    pixelText(String(n), 0, -20, 40, '#ffffff', '#543847');
+    ctx.restore();
   }
 
   if (state === STATE.DEAD) {
