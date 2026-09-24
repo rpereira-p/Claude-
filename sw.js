@@ -1,5 +1,7 @@
 // Service worker: deixa o jogo disponível offline depois da primeira visita.
-const CACHE = 'flappy-v1';
+// Estratégia "rede primeiro": com internet, sempre pega a versão mais nova;
+// sem internet, usa o que está em cache.
+const CACHE = 'flappy-v2';
 const FILES = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -14,5 +16,12 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  e.respondWith(caches.match(e.request).then(r => r || fetch(e.request)));
+  if (e.request.method !== 'GET') return;
+  e.respondWith(
+    fetch(e.request).then(res => {
+      const copy = res.clone();
+      caches.open(CACHE).then(c => c.put(e.request, copy));
+      return res;
+    }).catch(() => caches.match(e.request))
+  );
 });
