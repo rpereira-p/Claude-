@@ -602,6 +602,67 @@ function questStat(name) {
   return 0;
 }
 // Confere tudo que ainda não foi pago e paga. Devolve a lista de prêmios novos.
+// ---------------------------------------------------------------------------
+// Desafios diários: 3 metas sorteadas a partir da data (mesmas o dia todo),
+// renovam à meia-noite. Completar as três dá um bônus.
+// ---------------------------------------------------------------------------
+const DAILY_TYPES = [
+  { type: 'runScore',   min: 10, max: 30, text: n => `Faca ${n} pontos em uma partida`,   reward: n => 30 + n * 2 },
+  { type: 'runCoins',   min: 4,  max: 8,  text: n => `Pegue ${n} moedas em uma partida`,  reward: n => 30 + n * 6 },
+  { type: 'sceneScore', min: 8,  max: 20, text: (n, t) => `Faca ${n} pontos em ${t}`,     reward: n => 40 + n * 2 },
+  { type: 'dayPipes',   min: 60, max: 150,text: n => `Passe ${n} canos hoje`,             reward: n => 30 + Math.round(n / 3) },
+  { type: 'dayCoins',   min: 15, max: 40, text: n => `Pegue ${n} moedas hoje`,            reward: n => 30 + n * 2 },
+  { type: 'games',      min: 5,  max: 10, text: n => `Jogue ${n} partidas hoje`,          reward: n => 20 + n * 4 },
+];
+const DAILY_BONUS = 150;
+function todayKey() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
+function seededRand(seed) { let r = seed % 2147483647; if (r <= 0) r += 2147483646; return () => (r = r * 16807 % 2147483647) / 2147483647; }
+function ensureDaily() {
+  const key = todayKey();
+  if (save.daily && save.daily.date === key) return;
+  let seed = 0; for (const ch of key) seed = (seed * 31 + ch.charCodeAt(0)) >>> 0;
+  const rand = seededRand(seed + 7);
+  const types = DAILY_TYPES.slice();
+  const quests = [];
+  for (let i = 0; i < 3; i++) {
+    const t = types.splice(Math.floor(rand() * types.length), 1)[0];
+    const n = t.min + Math.floor(rand() * (t.max - t.min + 1));
+    const q = { type: t.type, n, progress: 0, done: false, reward: t.reward(n) };
+    if (t.type === 'sceneScore') {
+      const pool = SCENES.filter(sc => save.ownedScenes.includes(sc.id));
+      q.target = pool[Math.floor(rand() * pool.length)].id;
+    }
+    quests.push(q);
+  }
+  save.daily = { date: key, quests, bonus: false };
+  persist();
+}
+function dailyText(q) {
+  const t = DAILY_TYPES.find(d => d.type === q.type);
+  const sc = q.target ? SCENES.find(x => x.id === q.target) : null;
+  return t.text(q.n, sc ? sc.name : '');
+}
+// chamada no fim da partida: atualiza progresso e paga o que completou
+function updateDaily(won) {
+  ensureDaily();
+  const d = save.daily;
+  for (const q of d.quests) {
+    if (q.done) continue;
+    switch (q.type) {
+      case 'runScore':   q.progress = Math.max(q.progress, score); break;
+      case 'runCoins':   q.progress = Math.max(q.progress, runCoins); break;
+      case 'sceneScore': if (currentScene().id === q.target) q.progress = Math.max(q.progress, score); break;
+      case 'dayPipes':   q.progress += score; break;
+      case 'dayCoins':   q.progress += runCoins; break;
+      case 'games':      q.progress += 1; break;
+    }
+    if (q.progress >= q.n) { q.done = true; save.coins += q.reward; won.push({ text: 'Diario: ' + dailyText(q), reward: q.reward }); }
+  }
+  if (!d.bonus && d.quests.every(q => q.done)) { d.bonus = true; save.coins += DAILY_BONUS; won.push({ text: 'Bonus diario', reward: DAILY_BONUS }); }
+}
+function dailyDone() { ensureDaily(); return save.daily.quests.filter(q => q.done).length; }
+function hoursToMidnight() { const d = new Date(); return Math.max(1, Math.ceil((24 * 60 - d.getHours() * 60 - d.getMinutes()) / 60)); }
+
 function claimQuests() {
   const won = [];
   const claim = (key, text, reward) => { if (save.claimed[key]) return; save.claimed[key] = 1; save.coins += reward; won.push({ text, reward }); };
@@ -851,7 +912,7 @@ function currentScene() { return SCENES.find(s => s.id === save.scene) || SCENES
 let state = STATE.SPLASH;
 let frames = 0;
 let bird, pipes, score, groundX, deadTimer, panelY, flashAlpha, newBest, newStar = false;
-let questsWon = [], questTotal = 0, questTab = 'birds';
+let questsWon = [], questTotal = 0, questTab = 'daily';
 let shake = 0;                  // tremor de tela (frames restantes)
 let sparks = [];                // faíscas ao pegar moeda
 let resumeTimer = 0;            // contagem regressiva ao voltar da pausa
@@ -868,7 +929,7 @@ function resetBird() {
   bird = { x: BIRD_X, y: 220, vy: 0, rot: 0, frame: 0, animT: 0 };
 }
 
-function resetRun() { resetBird(); pipes = []; score = 0; groundX = 0; runCoins = 0; pipeIndex = 0; popups = []; fire = []; }
+function resetRun() { resetBird(); pipes = []; score = 0; groundX = 0; runCoins = 0; pipeIndex = 0; popups = []; fire = []; shieldOn = false; invuln = 0; magnetT = 0; slowT = 0; lastPowerPipe = -99; }
 function goSplash() { state = STATE.SPLASH; resetRun(); }
 function goReady()  { state = STATE.READY; resetRun(); SFX.swoosh(); }
 function goShop()   { state = STATE.SHOP; shopMsg = null; modal = null; SFX.swoosh(); }
@@ -884,9 +945,12 @@ function goPlay() {
 
 // velocidade atual: fixa até 50 pontos, sobe linearmente até 100 e depois trava
 function speed() {
-  if (score <= SPEED_RAMP_START) return PIPE_SPEED;
-  const t = Math.min(1, (score - SPEED_RAMP_START) / (SPEED_RAMP_END - SPEED_RAMP_START));
-  return PIPE_SPEED + (PIPE_SPEED_MAX - PIPE_SPEED) * t;
+  let v = PIPE_SPEED;
+  if (score > SPEED_RAMP_START) {
+    const t = Math.min(1, (score - SPEED_RAMP_START) / (SPEED_RAMP_END - SPEED_RAMP_START));
+    v = PIPE_SPEED + (PIPE_SPEED_MAX - PIPE_SPEED) * t;
+  }
+  return slowT > 0 ? v * 0.55 : v;
 }
 
 // Sorteia, para cada bloco de 30 canos, 10 posições que terão moeda.
@@ -902,8 +966,14 @@ function spawnPipe(x) {
   const top = Math.floor(minTop + Math.random() * (maxTop - minTop));
   if (pipeIndex % PIPES_PER_BLOCK === 0) rollCoinSlots();
   const hasCoin = coinSlots.has(pipeIndex % PIPES_PER_BLOCK);
+  let power = null;
+  if (!hasCoin && pipeIndex > 2 && pipeIndex - lastPowerPipe >= POWER_MIN_GAP && Math.random() < POWER_CHANCE) {
+    const kinds = ['shield', 'magnet', 'slow'];
+    power = kinds[Math.floor(Math.random() * kinds.length)];
+    lastPowerPipe = pipeIndex;
+  }
   pipeIndex++;
-  pipes.push({ x, top, passed: false, coin: hasCoin, coinTaken: false });
+  pipes.push({ x, top, passed: false, coin: hasCoin, coinTaken: false, power, powerTaken: false });
 }
 
 function flap() {
@@ -925,6 +995,7 @@ function die() {
   newStar = starsFor(save.birdBest[bid]) + starsFor(save.sceneBest[sid]) > oldStars;
   save.stats.games++;
   questsWon = claimQuests();
+  updateDaily(questsWon);
   questTotal = questsWon.reduce((a, q) => a + q.reward, 0);
   persist();
   SFX.hit();
@@ -958,9 +1029,10 @@ const BTN_BUY    = { x: MODAL.x + 16,  y: MODAL.y + MODAL.h - 46, w: 100, h: 32 
 const BTN_CANCEL = { x: MODAL.x + 124, y: MODAL.y + MODAL.h - 46, w: 100, h: 32 };
 const BTN_MODAL_OK = { x: W / 2 - 50, y: MODAL.y + MODAL.h - 46, w: 100, h: 32 };
 const TAB_Q = [
-  { x: 10,  y: 40, w: 86, h: 22, id: 'birds',  label: 'PASSAROS' },
-  { x: 101, y: 40, w: 86, h: 22, id: 'scenes', label: 'CENARIOS' },
-  { x: 192, y: 40, w: 86, h: 22, id: 'global', label: 'GERAIS' },
+  { x: 6,   y: 40, w: 66, h: 22, id: 'daily',  label: 'HOJE' },
+  { x: 76,  y: 40, w: 66, h: 22, id: 'birds',  label: 'PASSAROS' },
+  { x: 146, y: 40, w: 66, h: 22, id: 'scenes', label: 'CENARIOS' },
+  { x: 216, y: 40, w: 66, h: 22, id: 'global', label: 'GERAIS' },
 ];
 const RANK_ROW_H = 26, RANK_Y0 = 70;
 const BTN_BACK  = { x: 8, y: 8, w: 64, h: 26 };
@@ -1072,18 +1144,74 @@ window.addEventListener('contextmenu', e => e.preventDefault());
 // ---------------------------------------------------------------------------
 function birdBox() { return { x: bird.x + 4, y: bird.y + 4, w: BIRD_W - 8, h: BIRD_H - 8 }; }
 
+// devolve 'ground', 'pipe' ou null
 function collides() {
   const b = birdBox();
-  if (b.y + b.h >= GROUND_Y) return true;
+  if (b.y + b.h >= GROUND_Y) return 'ground';
   for (const p of pipes) {
     if (b.x + b.w > p.x && b.x < p.x + PIPE_W) {
-      if (b.y < p.top || b.y + b.h > p.top + PIPE_GAP) return true;
+      if (b.y < p.top || b.y + b.h > p.top + PIPE_GAP) return 'pipe';
     }
   }
-  return false;
+  return null;
 }
 
-function coinPos(p) { return { x: p.x + PIPE_W / 2, y: p.top + PIPE_GAP / 2 }; }
+function coinPos(p) { const o = p.coinOff || { x: 0, y: 0 }; return { x: p.x + PIPE_W / 2 + o.x, y: p.top + PIPE_GAP / 2 + o.y }; }
+
+// ---------------------------------------------------------------------------
+// Power-ups: aparecem no vão de alguns canos (nunca junto com moeda).
+//  escudo  - aguenta uma batida em cano
+//  ima     - por 8 s as moedas próximas são puxadas para o pássaro
+//  lento   - por 5 s canos e chão andam a 55% da velocidade
+// ---------------------------------------------------------------------------
+const POWER = {
+  shield: { name: 'ESCUDO', color: '#4aa8ff', light: '#c8e8ff', dur: 0 },
+  magnet: { name: 'IMA',    color: '#e84040', light: '#ffc0b0', dur: 480 },
+  slow:   { name: 'LENTO',  color: '#b070e8', light: '#e8d0ff', dur: 300 },
+};
+const POWER_MIN_GAP = 8;        // canos mínimos entre dois power-ups
+const POWER_CHANCE = 1 / 10;    // chance por cano elegível
+let shieldOn = false, invuln = 0, magnetT = 0, slowT = 0, lastPowerPipe = -99;
+
+function drawPowerIcon(x, y, type, r = 9) {
+  const c = POWER[type];
+  ctx.fillStyle = '#543847'; ctx.beginPath(); ctx.arc(x, y, r + 2, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = c.color; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = c.light;
+  if (type === 'shield') { ctx.fillRect(x - 4, y - 5, 8, 6); ctx.fillRect(x - 3, y + 1, 6, 2); ctx.fillRect(x - 2, y + 3, 4, 2); ctx.fillStyle = c.color; ctx.fillRect(x - 1, y - 3, 2, 5); }
+  if (type === 'magnet') { ctx.fillRect(x - 5, y - 5, 3, 7); ctx.fillRect(x + 2, y - 5, 3, 7); ctx.fillRect(x - 5, y + 2, 10, 3); ctx.fillStyle = '#ffffff'; ctx.fillRect(x - 5, y - 5, 3, 2); ctx.fillRect(x + 2, y - 5, 3, 2); }
+  if (type === 'slow') { ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = c.color; ctx.fillRect(x - 1, y - 4, 2, 5); ctx.fillRect(x, y - 1, 4, 2); }
+}
+
+function collectPowers() {
+  const b = birdBox();
+  for (const p of pipes) {
+    if (!p.power || p.powerTaken) continue;
+    const c = coinPos(p);
+    const nx = Math.max(b.x, Math.min(c.x, b.x + b.w)), ny = Math.max(b.y, Math.min(c.y, b.y + b.h));
+    if ((nx - c.x) ** 2 + (ny - c.y) ** 2 <= 11 * 11) {
+      p.powerTaken = true;
+      if (p.power === 'shield') shieldOn = true;
+      if (p.power === 'magnet') magnetT = POWER.magnet.dur;
+      if (p.power === 'slow') slowT = POWER.slow.dur;
+      popups.push({ x: c.x, y: c.y, t: 50, text: POWER[p.power].name, color: POWER[p.power].light });
+      for (let i = 0; i < 10; i++) sparks.push({ x: c.x, y: c.y, vx: rnd(-2.5, 2.5), vy: rnd(-2.5, 1), t: rnd(14, 26), color: POWER[p.power].color });
+      SFX.buy();
+    }
+  }
+}
+
+// ímã: puxa as moedas próximas
+function applyMagnet() {
+  if (magnetT <= 0) return;
+  const bx = bird.x + BIRD_W / 2, by = bird.y + BIRD_H / 2;
+  for (const p of pipes) {
+    if (!p.coin || p.coinTaken) continue;
+    if (p.coinOff === undefined) p.coinOff = { x: 0, y: 0 };
+    const c = coinPos(p), dx = bx - c.x, dy = by - c.y, d = Math.hypot(dx, dy);
+    if (d < 110 && d > 1) { p.coinOff.x += dx / d * 4.5; p.coinOff.y += dy / d * 4.5; }
+  }
+}
 
 function collectCoins() {
   const b = birdBox();
@@ -1169,8 +1297,18 @@ function update() {
       }
       if (pipes.length && pipes[0].x < -PIPE_CAP_W) pipes.shift();
       if (pipes[pipes.length - 1].x <= W - PIPE_SPACING + PIPE_W) spawnPipe(pipes[pipes.length - 1].x + PIPE_SPACING);
+      collectPowers();
+      applyMagnet();
       collectCoins();
-      if (collides()) die();
+      if (magnetT > 0) magnetT--;
+      if (slowT > 0) slowT--;
+      if (invuln > 0) invuln--;
+      const hit = collides();
+      if (hit === 'ground') die();
+      else if (hit === 'pipe' && invuln <= 0) {
+        if (shieldOn) { shieldOn = false; invuln = 40; shake = 8; SFX.deny(); popups.push({ x: bird.x + BIRD_W, y: bird.y, t: 40, text: 'ESCUDO!', color: '#c8e8ff' }); }
+        else die();
+      }
       break;
     }
 
@@ -1211,16 +1349,27 @@ function drawCoin(x, y, big = false, spin = false) {
 
 function drawCoins() {
   for (const p of pipes) {
+    if (p.power && !p.powerTaken) {
+      const c = coinPos(p), pulse = 1 + Math.sin(frames / 6) * 0.15;
+      ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.beginPath(); ctx.arc(c.x, c.y, 15 * pulse, 0, Math.PI * 2); ctx.fill();
+      drawPowerIcon(c.x, c.y + Math.sin(frames / 10) * 2, p.power, 10);
+    }
     if (!p.coin || p.coinTaken) continue;
     const c = coinPos(p);
     drawCoin(c.x, c.y + Math.sin(frames / 10) * 2, true, true);
   }
-  for (const q of popups) pixelText('+1', q.x, q.y - 14, 11, '#ffe060', '#543847');
+  for (const q of popups) pixelText(q.text || '+1', q.x, q.y - 14, 11, q.color || '#ffe060', '#543847');
 }
 
 function drawBird(def = currentBird(), b = bird) {
   const f = [0, 1, 2, 1][b.frame];
   if (def.fire) drawFire(b === bird ? fire : shopFire);
+  if (b === bird && (shieldOn || invuln > 0)) {
+    const cx = b.x + BIRD_W / 2, cy = b.y + BIRD_H / 2, r = 22 + Math.sin(frames / 5) * 1.5;
+    ctx.fillStyle = shieldOn ? 'rgba(74,168,255,0.25)' : `rgba(255,255,255,${(invuln % 8 < 4 ? 0.25 : 0.05).toFixed(2)})`;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = shieldOn ? '#c8e8ff' : '#ffffff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+  }
   ctx.save();
   ctx.translate(Math.round(b.x + BIRD_W / 2), Math.round(b.y + BIRD_H / 2));
   ctx.rotate(b.rot);
@@ -1287,9 +1436,32 @@ function drawQuests() {
   pixelText('DESAFIOS', W / 2, 8, 22, '#ffffff', '#543847');
   drawCoinHud(W - 74, 14, save.coins);
   const on = ['#4cc07a', '#9ae8b4', '#2a8a4e'], off = ['#8a7a60', '#a89880', '#5a4e3c'];
-  for (const t of TAB_Q) drawButton(t, t.label, ...(questTab === t.id ? on : off), 9);
+  for (const t of TAB_Q) drawButton(t, t.label, ...(questTab === t.id ? on : off), 8);
 
   const px = 8, pw = W - 16, y0 = 70;
+  if (questTab === 'daily') {
+    ensureDaily();
+    const d = save.daily, rowH = 46;
+    panel(px, y0 - 6, pw, d.quests.length * rowH + 60);
+    pixelText(`Renova em ${hoursToMidnight()}h`, W / 2, y0, 9, '#543847', '#f5f0c0');
+    d.quests.forEach((q, i) => {
+      const y = y0 + 16 + i * rowH, cur = Math.min(q.progress, q.n);
+      ctx.fillStyle = q.done ? 'rgba(76,192,122,0.18)' : 'rgba(0,0,0,0.06)'; ctx.fillRect(px + 6, y - 2, pw - 12, rowH - 2);
+      ctx.fillStyle = '#543847'; ctx.fillRect(px + 12, y + 4, 12, 12);
+      ctx.fillStyle = q.done ? '#4cc07a' : '#f5f0c0'; ctx.fillRect(px + 14, y + 6, 8, 8);
+      if (q.done) { ctx.fillStyle = '#ffffff'; ctx.fillRect(px + 16, y + 9, 2, 3); ctx.fillRect(px + 18, y + 7, 2, 5); }
+      pixelText(dailyText(q), px + 30, y + 2, 9, q.done ? '#3a9a2a' : '#543847', '#f5f0c0', 'left');
+      ctx.fillStyle = '#543847'; ctx.fillRect(px + 30, y + 20, 150, 8);
+      ctx.fillStyle = q.done ? '#4cc07a' : '#f5a623'; ctx.fillRect(px + 31, y + 21, Math.round(148 * cur / q.n), 6);
+      pixelText(`${cur}/${q.n}`, px + 186, y + 18, 8, '#543847', '#f5f0c0', 'left');
+      drawCoin(px + pw - 44, y + 24, false);
+      pixelText(String(q.reward), px + pw - 36, y + 18, 10, q.done ? '#3a9a2a' : '#7a5200', '#f5f0c0', 'left');
+    });
+    const by = y0 + 16 + d.quests.length * rowH + 2;
+    pixelText(d.bonus ? 'Bonus recebido!' : `Complete os 3: bonus de ${DAILY_BONUS}`, W / 2 - 8, by, 9, d.bonus ? '#3a9a2a' : '#543847', '#f5f0c0');
+    if (!d.bonus) drawCoin(W / 2 + 78, by + 6, false);
+    return;
+  }
   if (questTab === 'global') {
     const rowH = 24;
     panel(px, y0 - 6, pw, GLOBAL_QUESTS.length * rowH + 12);
@@ -1517,6 +1689,7 @@ function drawScene(sc) {
     drawButton(BTN_SHOP, 'LOJA', '#6aa8ff', '#a8ccff', '#3a70c0');
     drawButton(BTN_RANK, 'RANKING', '#b070e8', '#d8b0ff', '#7a40b0');
     drawButton(BTN_QUEST, 'DESAFIOS', '#4cc07a', '#9ae8b4', '#2a8a4e');
+    { const n = dailyDone(); pixelText(n === 3 ? 'Desafios de hoje completos!' : `Desafios de hoje: ${n}/3`, W / 2, 404, 9, n === 3 ? '#7be26a' : '#ffffff', '#543847'); }
     drawCoinHud(10, 10, save.coins);
     drawSoundButtons();
     if (save.best > 0) {
@@ -1544,12 +1717,22 @@ function drawScene(sc) {
   }
 
   // faíscas das moedas
-  for (const q of sparks) { ctx.fillStyle = q.t % 6 < 3 ? '#ffe97a' : '#ffcc1e'; ctx.fillRect(Math.round(q.x), Math.round(q.y), 2, 2); }
+  for (const q of sparks) { ctx.fillStyle = q.color || (q.t % 6 < 3 ? '#ffe97a' : '#ffcc1e'); ctx.fillRect(Math.round(q.x), Math.round(q.y), 2, 2); }
 
   if (state === STATE.PLAY || state === STATE.PAUSED || state === STATE.RESUME) {
     drawNumber(score, W / 2, 50, bigDigits, BIG_DW);
     drawCoinHud(10, 10, save.coins);
     drawPauseButton();
+    // power-ups ativos: ícone + barra de tempo
+    let hy = 34;
+    if (shieldOn) { drawPowerIcon(18, hy + 6, 'shield', 7); pixelText('ESCUDO', 30, hy, 9, '#c8e8ff', '#543847', 'left'); hy += 18; }
+    for (const [type, t] of [['magnet', magnetT], ['slow', slowT]]) {
+      if (t <= 0) continue;
+      drawPowerIcon(18, hy + 6, type, 7);
+      ctx.fillStyle = '#543847'; ctx.fillRect(30, hy + 3, 52, 7);
+      ctx.fillStyle = POWER[type].color; ctx.fillRect(31, hy + 4, Math.round(50 * t / POWER[type].dur), 5);
+      hy += 18;
+    }
   }
   if (state === STATE.PAUSED) {
     ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0, 0, W, H);
