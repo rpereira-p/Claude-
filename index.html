@@ -233,6 +233,55 @@ const DECO = {
     // faixa azul na cintura
     g.fillStyle = '#2f5fd8'; g.fillRect(7*s, 12*s, 9*s, 1*s); g.fillRect(8*s, 13*s, 6*s, 1*s);
   },
+  // samurai: elmo com viseira e crista em meia-lua
+  samurai: (g, s) => {
+    g.fillStyle = '#1b1b2f';
+    g.fillRect(6*s, 2*s, 14*s, 4*s); g.fillRect(5*s, 5*s, 16*s, 1*s); g.fillRect(9*s, 0, 2*s, 2*s); g.fillRect(13*s, 0, 2*s, 2*s); g.fillRect(10*s, -1*s, 4*s, 1*s);
+    g.fillStyle = '#7a1e28'; g.fillRect(7*s, 3*s, 12*s, 2*s); g.fillRect(6*s, 5*s, 14*s, 1*s);
+    g.fillStyle = '#a8303c'; g.fillRect(8*s, 3*s, 10*s, 1*s);
+    g.fillStyle = '#ffd52e'; g.fillRect(10*s, 0, 1*s, 2*s); g.fillRect(13*s, 0, 1*s, 2*s); g.fillRect(11*s, -1*s, 2*s, 1*s); g.fillRect(11*s, 4*s, 2*s, 1*s);
+    // máscara sobre o bico e cinto
+    g.fillStyle = '#1b1b2f'; g.fillRect(17*s, 9*s, 6*s, 1*s);
+    g.fillStyle = '#7a1e28'; g.fillRect(8*s, 12*s, 8*s, 1*s);
+  },
+  // mago: chapéu pontudo azul com estrelas e barba branca
+  mage: (g, s) => {
+    g.fillStyle = '#1b1b2f';
+    g.fillRect(4*s, 4*s, 17*s, 2*s); g.fillRect(7*s, 2*s, 10*s, 2*s); g.fillRect(9*s, 0, 6*s, 2*s); g.fillRect(11*s, -2*s, 3*s, 2*s); g.fillRect(12*s, -3*s, 2*s, 1*s);
+    g.fillStyle = '#2f3fb8'; g.fillRect(5*s, 4*s, 15*s, 1*s); g.fillRect(8*s, 2*s, 8*s, 2*s); g.fillRect(10*s, 0, 4*s, 2*s); g.fillRect(12*s, -2*s, 1*s, 2*s);
+    g.fillStyle = '#5a6ae0'; g.fillRect(8*s, 3*s, 3*s, 1*s);
+    g.fillStyle = '#ffd52e'; g.fillRect(13*s, 1*s, 1*s, 1*s); g.fillRect(9*s, 3*s, 1*s, 1*s); g.fillRect(17*s, 4*s, 1*s, 1*s);
+    // barba
+    g.fillStyle = '#f4f4f8'; g.fillRect(16*s, 11*s, 5*s, 2*s); g.fillRect(17*s, 13*s, 3*s, 1*s); g.fillRect(18*s, 14*s, 1*s, 1*s);
+    g.fillStyle = '#1b1b2f'; g.fillRect(16*s, 13*s, 1*s, 1*s); g.fillRect(20*s, 13*s, 1*s, 1*s); g.fillRect(17*s, 14*s, 1*s, 1*s); g.fillRect(19*s, 14*s, 1*s, 1*s); g.fillRect(18*s, 15*s, 1*s, 1*s);
+  },
+  // cavaleiro: elmo de aço com viseira e pluma vermelha
+  knight: (g, s) => {
+    g.fillStyle = '#1b1b2f';
+    g.fillRect(7*s, 1*s, 14*s, 2*s); g.fillRect(6*s, 3*s, 16*s, 3*s); g.fillRect(16*s, 6*s, 7*s, 4*s);
+    g.fillStyle = '#9aa4b4'; g.fillRect(8*s, 2*s, 12*s, 1*s); g.fillRect(7*s, 3*s, 14*s, 2*s); g.fillRect(17*s, 6*s, 5*s, 3*s);
+    g.fillStyle = '#c8d0dc'; g.fillRect(9*s, 2*s, 4*s, 1*s); g.fillRect(8*s, 3*s, 2*s, 1*s);
+    g.fillStyle = '#5a6474'; g.fillRect(17*s, 7*s, 5*s, 1*s);  // fenda da viseira
+    g.fillStyle = '#1b1b2f'; g.fillRect(18*s, 7*s, 1*s, 1*s); g.fillRect(20*s, 7*s, 1*s, 1*s);
+    // pluma
+    g.fillStyle = '#d02030'; g.fillRect(9*s, -1*s, 2*s, 3*s); g.fillRect(7*s, -2*s, 3*s, 2*s); g.fillRect(5*s, -1*s, 3*s, 1*s);
+    g.fillStyle = '#ff6070'; g.fillRect(8*s, -2*s, 1*s, 1*s);
+    // escudo pequeno no peito
+    g.fillStyle = '#1b1b2f'; g.fillRect(8*s, 11*s, 5*s, 3*s); g.fillStyle = '#2f5fd8'; g.fillRect(9*s, 12*s, 3*s, 1*s); g.fillStyle = '#ffd52e'; g.fillRect(10*s, 12*s, 1*s, 1*s);
+  },
+  // feiticeira: capuz roxo com fita e orbe brilhante no bico
+  sorceress: (g, s) => {
+    g.fillStyle = '#1b1b2f';
+    g.fillRect(6*s, 1*s, 14*s, 2*s); g.fillRect(5*s, 3*s, 3*s, 8*s); g.fillRect(19*s, 3*s, 3*s, 3*s); g.fillRect(4*s, 11*s, 3*s, 2*s);
+    g.fillStyle = '#6a2a9a'; g.fillRect(7*s, 2*s, 12*s, 1*s); g.fillRect(6*s, 3*s, 2*s, 8*s); g.fillRect(20*s, 3*s, 1*s, 3*s); g.fillRect(5*s, 11*s, 2*s, 2*s);
+    g.fillStyle = '#9a50d0'; g.fillRect(8*s, 2*s, 4*s, 1*s); g.fillRect(6*s, 4*s, 1*s, 3*s);
+    g.fillStyle = '#ff60c0'; g.fillRect(12*s, 1*s, 4*s, 1*s);  // fita
+    // orbe mágico brilhando na ponta do bico
+    g.fillStyle = '#1b1b2f'; g.fillRect(24*s, 8*s, 3*s, 3*s);
+    g.fillStyle = '#b070ff'; g.fillRect(25*s, 8*s, 1*s, 3*s); g.fillRect(24*s, 9*s, 3*s, 1*s);
+    g.fillStyle = '#ffffff'; g.fillRect(25*s, 9*s, 1*s, 1*s);
+    g.fillStyle = '#ff60c0'; g.fillRect(9*s, 13*s, 6*s, 1*s);
+  },
   // coroa dourada no alto da cabeça (por cima do topete)
   crown: (g, s) => {
     g.fillStyle = '#1b1b2f';
@@ -281,6 +330,10 @@ const BIRDS = [
   { id: 'shinobi',  name: 'Shinobi',   rarity: 'epico',    price: 280, pal: pal('#ff8c2a', '#ffc070', '#ffe4c0', '#ffd23a', { c: '#ff8c2a' }), deco: 'ninja' },
   { id: 'corsario', name: 'Corsario',  rarity: 'epico',    price: 280, pal: pal('#e84040', '#ff9a90', '#ffd8c8', '#ffb020', { c: '#1b1b2f' }), deco: 'pirate' },
   { id: 'guerreiro',name: 'Guerreiro', rarity: 'lendario', price: 550, pal: pal('#ff8c2a', '#ffc070', '#ffe4c0', '#ff9a2e', { c: '#ffd52e' }), deco: 'warrior', fire: true, fireColors: ['#ffffff', '#fff6b0', '#ffe040', '#ffb000', 'rgba(255,200,80,'] },
+  { id: 'samurai',  name: 'Samurai',   rarity: 'epico',    price: 300, pal: pal('#c8303c', '#ff8090', '#ffd0c8', '#ffb020', { c: '#c8303c' }), deco: 'samurai' },
+  { id: 'mago',     name: 'Mago',      rarity: 'epico',    price: 300, pal: pal('#4a5ae0', '#8a98ff', '#d8dcff', '#ffb020', { c: '#2f3fb8' }), deco: 'mage' },
+  { id: 'cavaleiro',name: 'Cavaleiro', rarity: 'epico',    price: 320, pal: pal('#8890a0', '#c0c8d4', '#e8ecf2', '#ffb020', { c: '#d02030' }), deco: 'knight' },
+  { id: 'feiticeira',name: 'Feiticeira', rarity: 'lendario', price: 500, pal: pal('#8a3ac8', '#c890f0', '#ecdcff', '#ff9a2e', { c: '#ff60c0' }), deco: 'sorceress', fire: true, fireColors: ['#ffffff', '#f0c8ff', '#c070ff', '#8030c0', 'rgba(160,80,220,'] },
 ];
 // Desbloqueio para demonstração (fica vazio na versão normal)
 const DEMO_UNLOCK = [];
@@ -329,23 +382,86 @@ const COIN_FRAMES = [16, 10, 4, 10].map(w => makeSprite(16, 16, g => {
 const PIPE_CAP_W = PIPE_W + 4, PIPE_CAP_H = 26;
 const GROUND_TILE_W = 24;
 
-function buildPipes(c) { // c = [contorno, corpo, claro, brilho, escuro, mais escuro]
-  const body = makeSprite(PIPE_W, 8, g => {
-    g.fillStyle = c[0]; g.fillRect(0, 0, PIPE_W, 8);
-    g.fillStyle = c[1]; g.fillRect(1, 0, PIPE_W - 2, 8);
-    g.fillStyle = c[2]; g.fillRect(4, 0, 8, 8);
-    g.fillStyle = c[3]; g.fillRect(6, 0, 3, 8);
-    g.fillStyle = c[4]; g.fillRect(PIPE_W - 12, 0, 8, 8);
-    g.fillStyle = c[5]; g.fillRect(PIPE_W - 4, 0, 3, 8);
+// Obstáculos: colunas feitas do material de cada cenário.
+// c = [contorno, corpo, claro, brilho, escuro, mais escuro]; style define a textura.
+const COL_TILE_H = 16;
+function buildPipes(c, style = 'stone') {
+  const body = makeSprite(PIPE_W, COL_TILE_H, g => {
+    g.fillStyle = c[0]; g.fillRect(0, 0, PIPE_W, COL_TILE_H);
+    g.fillStyle = c[1]; g.fillRect(1, 0, PIPE_W - 2, COL_TILE_H);
+    // sombra à direita e luz à esquerda (volume da coluna)
+    g.fillStyle = c[2]; g.fillRect(1, 0, 6, COL_TILE_H);
+    g.fillStyle = c[4]; g.fillRect(PIPE_W - 9, 0, 8, COL_TILE_H);
+    if (style === 'stone' || style === 'sand' || style === 'obsidian') {
+      // blocos de pedra com juntas escuras, fiadas desencontradas
+      g.fillStyle = c[5];
+      g.fillRect(1, 7, PIPE_W - 2, 1); g.fillRect(1, 15, PIPE_W - 2, 1);
+      for (const x of [13, 30]) g.fillRect(x, 0, 1, 7);
+      for (const x of [6, 22, 40]) g.fillRect(x, 8, 1, 7);
+      g.fillStyle = c[3];
+      g.fillRect(2, 0, 10, 1); g.fillRect(15, 0, 14, 1); g.fillRect(32, 0, 12, 1);
+      g.fillRect(8, 8, 13, 1); g.fillRect(24, 8, 15, 1);
+      if (style === 'stone') { g.fillStyle = '#6fb84a'; g.fillRect(3, 4, 3, 2); g.fillRect(34, 11, 4, 2); g.fillRect(20, 13, 2, 2); }  // musgo
+      if (style === 'sand') { g.fillStyle = c[4]; g.fillRect(17, 3, 4, 1); g.fillRect(18, 4, 2, 1); g.fillRect(27, 11, 5, 1); }        // marcas
+      if (style === 'obsidian') { g.fillStyle = '#ff6a20'; g.fillRect(9, 2, 1, 4); g.fillRect(10, 5, 1, 3); g.fillRect(36, 9, 1, 5); g.fillRect(35, 12, 1, 2); g.fillStyle = '#ffd040'; g.fillRect(9, 3, 1, 1); g.fillRect(36, 10, 1, 1); } // lava nas rachaduras
+    } else if (style === 'ice' || style === 'crystal') {
+      // facetas diagonais translúcidas
+      g.fillStyle = c[3];
+      for (let i = 0; i < COL_TILE_H; i++) { g.fillRect(8 + i, i, 2, 1); g.fillRect(30 + ((i * 2) % 14), i, 1, 1); }
+      g.fillStyle = c[5];
+      for (let i = 0; i < COL_TILE_H; i++) g.fillRect(24 + i, i, 1, 1);
+      g.fillStyle = c[2]; g.fillRect(40, 3, 2, 2); g.fillRect(14, 12, 2, 2);
+    } else if (style === 'metal') {
+      // chapas de aço com rebites
+      g.fillStyle = c[5]; g.fillRect(1, 7, PIPE_W - 2, 1); g.fillRect(1, 15, PIPE_W - 2, 1); g.fillRect(25, 0, 1, COL_TILE_H);
+      g.fillStyle = c[3]; g.fillRect(1, 0, PIPE_W - 2, 1); g.fillRect(1, 8, PIPE_W - 2, 1);
+      g.fillStyle = c[4];
+      for (const [x, y] of [[4,3],[20,3],[30,3],[46,3],[4,11],[20,11],[30,11],[46,11]]) g.fillRect(x, y, 2, 2);
+      g.fillStyle = '#e8e0c0'; for (const [x, y] of [[4,3],[20,3],[30,3],[46,3],[4,11],[20,11],[30,11],[46,11]]) g.fillRect(x, y, 1, 1);
+      g.fillStyle = '#c8a020'; g.fillRect(36, 9, 8, 4); g.fillStyle = '#1e1e1e'; g.fillRect(37, 10, 2, 2); g.fillRect(41, 10, 2, 2); // placa de aviso
+    } else if (style === 'tech') {
+      // painéis escuros com linhas de luz neon
+      g.fillStyle = c[5]; g.fillRect(1, 5, PIPE_W - 2, 1); g.fillRect(1, 11, PIPE_W - 2, 1);
+      g.fillStyle = c[3]; g.fillRect(10, 0, 1, COL_TILE_H); g.fillRect(40, 0, 1, COL_TILE_H);
+      g.fillStyle = '#00e0ff'; g.fillRect(16, 2, 12, 1); g.fillRect(16, 8, 6, 1); g.fillRect(30, 13, 8, 1);
+      g.fillStyle = '#ffffff'; g.fillRect(17, 2, 2, 1); g.fillRect(31, 13, 2, 1);
+    } else if (style === 'wood') {
+      // tronco com veios
+      g.fillStyle = c[5]; g.fillRect(12, 0, 1, COL_TILE_H); g.fillRect(28, 0, 1, COL_TILE_H); g.fillRect(38, 0, 1, 10);
+      g.fillStyle = c[3]; g.fillRect(3, 0, 1, COL_TILE_H); g.fillRect(20, 4, 1, 8);
+      g.fillStyle = c[4]; g.fillRect(30, 6, 5, 3); g.fillRect(31, 7, 3, 1);
+    }
   });
   const cap = makeSprite(PIPE_CAP_W, PIPE_CAP_H, g => {
+    // topo mais largo: capitel / cornija do material
     g.fillStyle = c[0]; g.fillRect(0, 0, PIPE_CAP_W, PIPE_CAP_H);
     g.fillStyle = c[1]; g.fillRect(1, 1, PIPE_CAP_W - 2, PIPE_CAP_H - 2);
-    g.fillStyle = c[2]; g.fillRect(5, 1, 10, PIPE_CAP_H - 2);
-    g.fillStyle = c[3]; g.fillRect(7, 1, 4, PIPE_CAP_H - 2);
-    g.fillStyle = c[4]; g.fillRect(PIPE_CAP_W - 14, 1, 10, PIPE_CAP_H - 2);
-    g.fillStyle = c[5]; g.fillRect(PIPE_CAP_W - 5, 1, 3, PIPE_CAP_H - 2);
-    g.fillStyle = c[0]; g.fillRect(0, PIPE_CAP_H - 1, PIPE_CAP_W, 1);
+    g.fillStyle = c[2]; g.fillRect(1, 1, 7, PIPE_CAP_H - 2);
+    g.fillStyle = c[4]; g.fillRect(PIPE_CAP_W - 9, 1, 8, PIPE_CAP_H - 2);
+    g.fillStyle = c[3]; g.fillRect(1, 1, PIPE_CAP_W - 2, 2);
+    g.fillStyle = c[5]; g.fillRect(1, PIPE_CAP_H - 3, PIPE_CAP_W - 2, 2);
+    if (style === 'stone' || style === 'sand' || style === 'obsidian' || style === 'wood') {
+      // ameias no topo e faixa de blocos
+      g.fillStyle = c[0]; for (let x = 4; x < PIPE_CAP_W - 4; x += 12) g.fillRect(x + 6, 0, 6, 5);
+      g.fillStyle = c[5]; g.fillRect(1, 12, PIPE_CAP_W - 2, 1); for (const x of [14, 28, 42]) g.fillRect(x, 13, 1, 10);
+      g.fillStyle = c[3]; g.fillRect(2, 13, 11, 1); g.fillRect(16, 13, 11, 1); g.fillRect(30, 13, 11, 1); g.fillRect(44, 13, 10, 1);
+      if (style === 'stone') { g.fillStyle = '#6fb84a'; g.fillRect(6, 16, 5, 2); g.fillRect(44, 18, 4, 2); }
+      if (style === 'obsidian') { g.fillStyle = '#ff6a20'; g.fillRect(20, 15, 1, 6); g.fillRect(21, 19, 1, 3); }
+    } else if (style === 'ice' || style === 'crystal') {
+      g.fillStyle = c[3]; for (let i = 0; i < 20; i++) g.fillRect(6 + i, 3 + i, 2, 1);
+      g.fillStyle = c[5]; for (let i = 0; i < 18; i++) g.fillRect(34 + i, 4 + i, 1, 1);
+      g.fillStyle = '#ffffff'; g.fillRect(12, 6, 2, 2); g.fillRect(40, 16, 2, 2);
+    } else if (style === 'metal') {
+      g.fillStyle = c[5]; g.fillRect(1, 8, PIPE_CAP_W - 2, 1); g.fillRect(1, 17, PIPE_CAP_W - 2, 1);
+      g.fillStyle = c[4]; for (const x of [5, 18, 36, 49]) { g.fillRect(x, 4, 2, 2); g.fillRect(x, 21, 2, 2); }
+      g.fillStyle = '#e8e0c0'; for (const x of [5, 18, 36, 49]) { g.fillRect(x, 4, 1, 1); g.fillRect(x, 21, 1, 1); }
+      g.fillStyle = '#c8a020'; for (let x = 2; x < PIPE_CAP_W - 2; x += 8) g.fillRect(x, 11, 4, 4); // faixa listrada amarela/preta
+    } else if (style === 'tech') {
+      g.fillStyle = c[5]; g.fillRect(1, 9, PIPE_CAP_W - 2, 1); g.fillRect(1, 17, PIPE_CAP_W - 2, 1);
+      g.fillStyle = '#ff40c0'; g.fillRect(6, 12, PIPE_CAP_W - 12, 2);
+      g.fillStyle = '#00e0ff'; g.fillRect(10, 5, 8, 1); g.fillRect(38, 21, 10, 1);
+      g.fillStyle = '#ffffff'; g.fillRect(8, 12, 3, 2);
+    }
   });
   return { body, cap };
 }
@@ -380,7 +496,7 @@ const CITY = [[0,40,50],[46,28,70],[80,36,44],[122,24,66],[152,40,52],[198,30,60
 
 const SCENES = [
   { id: 'dia', name: 'Dia', rarity: 'comum', price: 0,
-    pipe: ['#543847','#73bf2e','#9ce650','#e0f8a0','#558c22','#3f6a18'],
+    style: 'stone', pipe: ['#3a3038','#9a8c7a','#b8aa96','#d8ccb8','#6e6254','#4a4038'],
     ground: ['#ded895','#543847','#73bf2e','#9ce650','#558c22','#d0c880','#c8b870'],
     paint(g) {
       g.fillStyle = '#4ec0ca'; g.fillRect(0, 0, W, H);
@@ -389,7 +505,7 @@ const SCENES = [
       brush.bushes(g, 372, '#7fd05b', '#5cb63a');
     } },
   { id: 'noite', name: 'Noite', rarity: 'comum', price: 40, fx: 'stars',
-    pipe: ['#1a1230','#3f7a2a','#5aa83a','#8fd060','#2e5a1e','#1e3c14'],
+    style: 'stone', pipe: ['#12101e','#4a4460','#605a7c','#8a84a8','#332e48','#221e34'],
     ground: ['#5a5238','#1a1230','#3f7a2a','#5aa83a','#2e5a1e','#4c4530','#403a28'],
     paint(g) {
       brush.sky(g, '#0b1030', '#25306a');
@@ -401,7 +517,7 @@ const SCENES = [
       brush.bushes(g, 372, '#1f5a2a', '#17421f');
     } },
   { id: 'por-do-sol', name: 'Por do sol', rarity: 'comum', price: 40,
-    pipe: ['#4a2030','#c0503a','#e07a52','#ffb890','#8a3628','#5a2018'],
+    style: 'wood', pipe: ['#3a1a10','#8a5030','#a86a44','#d09060','#5e341c','#40200e'],
     ground: ['#c9a06a','#4a2030','#c0503a','#e07a52','#8a3628','#b8905e','#a88050'],
     paint(g) {
       brush.sky(g, '#ff9a3c', '#ffd27a');
@@ -412,7 +528,7 @@ const SCENES = [
       brush.bushes(g, 372, '#7a3a48', '#5a2838');
     } },
   { id: 'deserto', name: 'Deserto', rarity: 'raro', price: 100, fx: 'sand',
-    pipe: ['#5a3a20','#c8a060','#e0c080','#f8e8b0','#a07840','#7a5828'],
+    style: 'sand', pipe: ['#5a3a20','#d8b070','#e8c88c','#f8e4b0','#b08c50','#8a6a34'],
     ground: ['#e8c070','#5a3a20','#d8b060','#f0d080','#b89050','#dcb468','#c8a058'],
     paint(g) {
       brush.sky(g, '#f8d890', '#f0b060');
@@ -425,7 +541,7 @@ const SCENES = [
       brush.px(g, '#2c6a28', [[40,340,2,40],[200,336,2,44]]);
     } },
   { id: 'neve', name: 'Neve', rarity: 'raro', price: 100, fx: 'snow',
-    pipe: ['#3a4a5a','#a8c8d8','#d0e8f0','#ffffff','#7a98a8','#5a7888'],
+    style: 'ice', pipe: ['#2e4a66','#a8d8f0','#c8ecfc','#ffffff','#78b0d0','#5088ac'],
     ground: ['#f0f6ff','#3a4a5a','#dceaf5','#ffffff','#b8ccd8','#e0ecf6','#cddbe6'],
     paint(g) {
       brush.sky(g, '#9ec8e8', '#dbeefc');
@@ -442,7 +558,7 @@ const SCENES = [
       }
     } },
   { id: 'guerra', name: 'Guerra', rarity: 'epico', price: 220, fx: 'war',
-    pipe: ['#1e1e1e','#5a6a4a','#7a8a60','#a8b888','#3e4a30','#2a3220'],
+    style: 'metal', pipe: ['#141414','#6a7078','#8a9098','#b8bec6','#484c54','#303338'],
     ground: ['#6a5a40','#1e1e1e','#5a5a48','#7a7a62','#3e3e30','#5e4e38','#4e4030'],
     paint(g) {
       brush.sky(g, '#3a3028', '#8a6a48');
@@ -473,7 +589,7 @@ const SCENES = [
       g.fillStyle = '#3a3024'; for (const x of [50, 150, 245]) { g.beginPath(); g.ellipse(x, 396, 14, 4, 0, 0, Math.PI * 2); g.fill(); }
     } },
   { id: 'espaco', name: 'Espaco', rarity: 'epico', price: 220, fx: 'stars',
-    pipe: ['#101018','#6a5a9a','#9a88d0','#d0c0ff','#4a3e70','#302850'],
+    style: 'crystal', pipe: ['#100c22','#7a5ad0','#a488e8','#dcccff','#503a98','#382668'],
     ground: ['#8a8a96','#101018','#b0b0bc','#d0d0dc','#707080','#7e7e8a','#6a6a76'],
     paint(g) {
       brush.sky(g, '#020208', '#0c0c26');
@@ -492,7 +608,7 @@ const SCENES = [
       g.fillStyle = '#6a6a78'; for (const x of [30, 110, 190, 260]) { g.beginPath(); g.ellipse(x, 384, 16, 5, 0, 0, Math.PI * 2); g.fill(); }
     } },
   { id: 'vulcao', name: 'Vulcao', rarity: 'lendario', price: 400, fx: 'embers',
-    pipe: ['#1a0a08','#4a2a24','#6a3a30','#9a5a48','#301a16','#20100e'],
+    style: 'obsidian', pipe: ['#0c0608','#2e2230','#443446','#6a5468','#1e161e','#140e14'],
     ground: ['#2a1a16','#1a0a08','#ff6a20','#ffb040','#c03010','#241410','#1e100c'],
     paint(g) {
       brush.sky(g, '#1a0608', '#7a1a10');
@@ -513,7 +629,7 @@ const SCENES = [
       g.fillStyle = '#c03010'; for (let x = 0; x < W; x += 34) g.fillRect(x, 386, 20, 4);
     } },
   { id: 'neon', name: 'Neon', rarity: 'lendario', price: 400, fx: 'rain',
-    pipe: ['#0a0a18','#20204a','#3a3a7a','#ff40c0','#141430','#0c0c20'],
+    style: 'tech', pipe: ['#08081a','#1c1c44','#2c2c66','#5050a8','#121232','#0c0c22'],
     ground: ['#101024','#0a0a18','#1c1c40','#00e0ff','#0e0e28','#141430','#101028'],
     paint(g) {
       brush.sky(g, '#06031a', '#2a0a4a');
@@ -531,7 +647,7 @@ const SCENES = [
 ];
 for (const sc of SCENES) sc.built = null;
 function sceneAssets(sc) {
-  if (!sc.built) sc.built = { bg: makeSprite(W, H, g => sc.paint(g)), ground: buildGround(sc.ground), pipes: buildPipes(sc.pipe) };
+  if (!sc.built) sc.built = { bg: makeSprite(W, H, g => sc.paint(g)), ground: buildGround(sc.ground), pipes: buildPipes(sc.pipe, sc.style) };
   return sc.built;
 }
 
@@ -660,7 +776,8 @@ const GLOBAL_QUESTS = [
   { id: 'games100',  text: 'Jogue 100 partidas',          stat: 'games',      goal: 100,  reward: 80 },
   { id: 'birds3',    text: 'Tenha 3 passaros',            stat: 'birdsOwned', goal: 3,    reward: 40 },
   { id: 'birds7',    text: 'Tenha 7 passaros',            stat: 'birdsOwned', goal: 7,    reward: 120 },
-  { id: 'birds13',   text: 'Tenha todos os passaros',     stat: 'birdsOwned', goal: 16,   reward: 500 },
+  { id: 'birds12',   text: 'Tenha 12 passaros',           stat: 'birdsOwned', goal: 12,   reward: 250 },
+  { id: 'birds13',   text: 'Tenha todos os passaros',     stat: 'birdsOwned', goal: 20,   reward: 500 },
   { id: 'scenes3',   text: 'Tenha 3 cenarios',            stat: 'scenesOwned',goal: 3,    reward: 40 },
   { id: 'scenes9',   text: 'Tenha todos os cenarios',     stat: 'scenesOwned',goal: 9,    reward: 500 },
   { id: 'stars10',   text: 'Some 10 estrelas',            stat: 'stars',      goal: 10,   reward: 100 },
@@ -1116,7 +1233,7 @@ const TAB_Q = [
   { x: 146, y: 40, w: 66, h: 22, id: 'scenes', label: 'CENARIOS' },
   { x: 216, y: 40, w: 66, h: 22, id: 'global', label: 'GERAIS' },
 ];
-const RANK_ROW_H = 23, RANK_Y0 = 70;
+const RANK_ROW_H = 20, RANK_Y0 = 70;
 const BTN_BACK  = { x: 8, y: 8, w: 64, h: 26 };
 const TAB_BIRDS  = { x: W / 2 - 92, y: 40, w: 90, h: 22 };
 const TAB_SCENES = { x: W / 2 + 2,  y: 40, w: 90, h: 22 };
@@ -1417,11 +1534,12 @@ function drawPipes() {
   const { body, cap } = sceneAssets(currentScene()).pipes;
   for (const p of pipes) {
     const x = Math.round(p.x);
-    for (let y = p.top - PIPE_CAP_H - 8; y > -8; y -= 8) ctx.drawImage(body, x, y);
+    const th = body.height;
+    for (let y = p.top - PIPE_CAP_H - th; y > -th; y -= th) ctx.drawImage(body, x, y);
     ctx.drawImage(cap, x - 2, p.top - PIPE_CAP_H);
     const bottom = p.top + PIPE_GAP;
     ctx.drawImage(cap, x - 2, bottom);
-    for (let y = bottom + PIPE_CAP_H; y < GROUND_Y; y += 8) ctx.drawImage(body, x, y, PIPE_W, Math.min(8, GROUND_Y - y));
+    for (let y = bottom + PIPE_CAP_H; y < GROUND_Y; y += th) { const h = Math.min(th, GROUND_Y - y); ctx.drawImage(body, 0, 0, PIPE_W, h, x, y, PIPE_W, h); }
   }
 }
 
@@ -1570,7 +1688,7 @@ function drawQuests() {
 
   const isBirds = questTab === 'birds';
   const list = isBirds ? BIRDS : SCENES, table = isBirds ? save.birdBest : save.sceneBest, pre = isBirds ? 'b:' : 's:';
-  const rowH = 23;
+  const rowH = 20;
   panel(px, y0 - 6, pw, list.length * rowH + 12);
   list.forEach((it, i) => {
     const y = y0 + i * rowH, rec = table[it.id] || 0;
@@ -1578,30 +1696,30 @@ function drawQuests() {
     if (i % 2) { ctx.fillStyle = 'rgba(0,0,0,0.06)'; ctx.fillRect(px + 6, y - 2, pw - 12, rowH); }
     if (isBirds) {
       ctx.save(); ctx.globalAlpha = owned ? 1 : 0.45;
-      ctx.drawImage(birdSprite(it, 1), 0, 0, BIRD_W, BIRD_H, px + 8, y - 1, 29, 20);
+      ctx.drawImage(birdSprite(it, 1), 0, 0, BIRD_W, BIRD_H, px + 8, y - 2, 26, 18);
       ctx.restore();
     } else {
       const a = sceneAssets(it);
-      ctx.fillStyle = '#543847'; ctx.fillRect(px + 9, y - 1, 28, 20);
-      ctx.drawImage(a.bg, 0, 100, W, GROUND_Y - 100, px + 10, y, 26, 14);
-      ctx.drawImage(a.ground, 0, 0, W, 30, px + 10, y + 14, 26, 4);
-      if (!owned) { ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(px + 10, y, 26, 18); }
+      ctx.fillStyle = '#543847'; ctx.fillRect(px + 9, y - 2, 28, 18);
+      ctx.drawImage(a.bg, 0, 100, W, GROUND_Y - 100, px + 10, y - 1, 26, 12);
+      ctx.drawImage(a.ground, 0, 0, W, 30, px + 10, y + 11, 26, 4);
+      if (!owned) { ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(px + 10, y - 1, 26, 16); }
     }
-    pixelText(it.name, px + 42, y - 1, 9, owned ? '#543847' : '#8a8070', '#f5f0c0', 'left');
+    pixelText(it.name, px + 42, y - 3, 9, owned ? '#543847' : '#8a8070', '#f5f0c0', 'left');
     // escada de metas: um quadradinho por degrau (verde = pago, laranja = próximo)
     let next = null;
     QUEST_STEPS.forEach((st, k) => {
       const done = !!save.claimed[`${pre}${it.id}:${st}`];
       if (!done && next === null) next = st;
       const x = px + 42 + k * 15;
-      ctx.fillStyle = '#543847'; ctx.fillRect(x, y + 11, 12, 8);
-      ctx.fillStyle = done ? '#4cc07a' : (st === next ? '#f5a623' : '#e8e0c0'); ctx.fillRect(x + 1, y + 12, 10, 6);
+      ctx.fillStyle = '#543847'; ctx.fillRect(x, y + 8, 12, 7);
+      ctx.fillStyle = done ? '#4cc07a' : (st === next ? '#f5a623' : '#e8e0c0'); ctx.fillRect(x + 1, y + 9, 10, 5);
     });
-    if (next === null) pixelText('COMPLETO', px + pw - 10, y + 3, 9, '#3a9a2a', '#f5f0c0', 'right');
+    if (next === null) pixelText('COMPLETO', px + pw - 10, y + 2, 9, '#3a9a2a', '#f5f0c0', 'right');
     else {
-      pixelText(`${next} pts`, px + pw - 48, y - 1, 9, '#543847', '#f5f0c0', 'right');
-      drawCoin(px + pw - 44, y + 15, false);
-      pixelText(String(questReward(next, it.rarity)), px + pw - 36, y + 9, 9, '#7a5200', '#f5f0c0', 'left');
+      pixelText(`${next} pts`, px + pw - 48, y - 3, 9, '#543847', '#f5f0c0', 'right');
+      drawCoin(px + pw - 44, y + 12, false);
+      pixelText(String(questReward(next, it.rarity)), px + pw - 36, y + 7, 9, '#7a5200', '#f5f0c0', 'left');
     }
   });
   pixelText('Cada meta paga uma vez e nunca reinicia', W / 2, H - 22, 9, '#ffffff', '#543847');
@@ -1627,23 +1745,23 @@ function drawRank() {
     const owned = isBirds ? save.owned.includes(it.id) : save.ownedScenes.includes(it.id);
     if (i % 2) { ctx.fillStyle = 'rgba(0,0,0,0.06)'; ctx.fillRect(px + 6, y - 2, pw - 12, RANK_ROW_H); }
     // posição
-    pixelText(String(i + 1) + '.', px + 14, y + 4, 10, i < 3 ? '#f5a623' : '#543847', '#f5f0c0', 'left');
+    pixelText(String(i + 1) + '.', px + 12, y + 2, 9, i < 3 ? '#f5a623' : '#543847', '#f5f0c0', 'left');
     // ícone
     if (isBirds) {
       ctx.save(); ctx.globalAlpha = owned ? 1 : 0.45;
-      ctx.drawImage(birdSprite(it, 1), 0, 0, BIRD_W, BIRD_H, px + 28, y - 1, 29, 20);
+      ctx.drawImage(birdSprite(it, 1), 0, 0, BIRD_W, BIRD_H, px + 28, y - 2, 26, 18);
       ctx.restore();
     } else {
       const a = sceneAssets(it);
-      ctx.fillStyle = '#543847'; ctx.fillRect(px + 29, y - 1, 28, 20);
-      ctx.drawImage(a.bg, 0, 100, W, GROUND_Y - 100, px + 30, y, 26, 14);
-      ctx.drawImage(a.ground, 0, 0, W, 30, px + 30, y + 14, 26, 4);
-      if (!owned) { ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(px + 30, y, 26, 18); }
+      ctx.fillStyle = '#543847'; ctx.fillRect(px + 29, y - 2, 28, 18);
+      ctx.drawImage(a.bg, 0, 100, W, GROUND_Y - 100, px + 30, y - 1, 26, 12);
+      ctx.drawImage(a.ground, 0, 0, W, 30, px + 30, y + 11, 26, 4);
+      if (!owned) { ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(px + 30, y - 1, 26, 16); }
     }
-    pixelText(it.name, px + 62, y + 4, 10, owned ? '#543847' : '#8a8070', '#f5f0c0', 'left');
+    pixelText(it.name, px + 62, y + 2, 10, owned ? '#543847' : '#8a8070', '#f5f0c0', 'left');
     // recorde e estrelas
-    drawNumber(rec, px + pw - 58, y + 3, smallDigits, SMALL_DW, 'right');
-    drawStars(px + pw - 52, y + 5, starsFor(rec));
+    drawNumber(rec, px + pw - 58, y + 1, smallDigits, SMALL_DW, 'right');
+    drawStars(px + pw - 52, y + 3, starsFor(rec));
   });
   pixelText(`Estrelas: ${STAR_STEPS.join(' / ')} pontos`, W / 2, H - 22, 9, '#ffffff', '#543847');
 }
