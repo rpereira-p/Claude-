@@ -778,6 +778,7 @@ let pipeIndex = 0;              // quantos canos já foram criados nesta partida
 let coinSlots = [];             // quais índices do bloco atual têm moeda
 let shopMsg = null;             // aviso na loja ("moedas insuficientes")
 let shopTab = 'birds';          // 'birds' ou 'scenes'
+let modal = null;               // popup de confirmação de compra
 let popups = [];                // "+1" flutuando ao pegar moeda
 
 function resetBird() {
@@ -787,7 +788,7 @@ function resetBird() {
 function resetRun() { resetBird(); pipes = []; score = 0; groundX = 0; runCoins = 0; pipeIndex = 0; popups = []; fire = []; }
 function goSplash() { state = STATE.SPLASH; resetRun(); }
 function goReady()  { state = STATE.READY; resetRun(); SFX.swoosh(); }
-function goShop()   { state = STATE.SHOP; shopMsg = null; SFX.swoosh(); }
+function goShop()   { state = STATE.SHOP; shopMsg = null; modal = null; SFX.swoosh(); }
 function goRank()   { state = STATE.RANK; SFX.swoosh(); }
 function goQuests() { state = STATE.QUESTS; SFX.swoosh(); }
 
@@ -854,6 +855,10 @@ const BTN_START = { x: W / 2 - 52, y: 298, w: 104, h: 30 };
 const BTN_SHOP  = { x: W / 2 - 108, y: 334, w: 104, h: 30 };
 const BTN_RANK  = { x: W / 2 + 4,   y: 334, w: 104, h: 30 };
 const BTN_QUEST = { x: W / 2 - 52,  y: 370, w: 104, h: 30 };
+const MODAL = { x: 24, y: 150, w: 240, h: 200 };
+const BTN_BUY    = { x: MODAL.x + 16,  y: MODAL.y + MODAL.h - 46, w: 100, h: 32 };
+const BTN_CANCEL = { x: MODAL.x + 124, y: MODAL.y + MODAL.h - 46, w: 100, h: 32 };
+const BTN_MODAL_OK = { x: W / 2 - 50, y: MODAL.y + MODAL.h - 46, w: 100, h: 32 };
 const TAB_Q = [
   { x: 10,  y: 40, w: 86, h: 22, id: 'birds',  label: 'PASSAROS' },
   { x: 101, y: 40, w: 86, h: 22, id: 'scenes', label: 'CENARIOS' },
@@ -897,6 +902,7 @@ function input(pt) {
       if (deadTimer > 60) goSplash();
       break;
     case STATE.SHOP:
+      if (modal) { modalTap(pt); break; }
       if (!pt || inside(pt, BTN_BACK)) { goSplash(); break; }
       if (inside(pt, TAB_BIRDS))  { shopTab = 'birds';  SFX.swoosh(); break; }
       if (inside(pt, TAB_SCENES)) { shopTab = 'scenes'; SFX.swoosh(); break; }
@@ -909,30 +915,38 @@ function input(pt) {
   }
 }
 function shopTap(def) {
-  if (save.owned.includes(def.id)) {
-    save.selected = def.id; persist(); SFX.swoosh(); shopMsg = null;
-  } else if (save.coins >= def.price) {
-    save.coins -= def.price; save.owned.push(def.id); save.selected = def.id; persist(); SFX.buy();
-    shopMsg = { text: `${def.name} comprado!`, color: '#7be26a', t: 90 };
-  } else {
-    SFX.deny();
-    shopMsg = { text: `Faltam ${def.price - save.coins} moedas`, color: '#ff6060', t: 90 };
-  }
+  if (save.owned.includes(def.id)) { save.selected = def.id; persist(); SFX.swoosh(); shopMsg = null; return; }
+  openModal('bird', def);
 }
 function sceneTap(sc) {
-  if (save.ownedScenes.includes(sc.id)) {
-    save.scene = sc.id; persist(); SFX.swoosh(); shopMsg = null; ambient = [];
-  } else if (save.coins >= sc.price) {
-    save.coins -= sc.price; save.ownedScenes.push(sc.id); save.scene = sc.id; persist(); SFX.buy(); ambient = [];
-    shopMsg = { text: `Cenario ${sc.name} comprado!`, color: '#7be26a', t: 90 };
-  } else {
-    SFX.deny();
-    shopMsg = { text: `Faltam ${sc.price - save.coins} moedas`, color: '#ff6060', t: 90 };
-  }
+  if (save.ownedScenes.includes(sc.id)) { save.scene = sc.id; persist(); SFX.swoosh(); shopMsg = null; ambient = []; return; }
+  openModal('scene', sc);
+}
+// Abre o popup: com saldo suficiente pede confirmação; sem saldo, avisa quanto falta
+function openModal(kind, item) {
+  const canBuy = save.coins >= item.price;
+  modal = { kind, item, canBuy, t: 0 };
+  if (canBuy) SFX.swoosh(); else SFX.deny();
+}
+function confirmPurchase() {
+  const { kind, item } = modal;
+  save.coins -= item.price;
+  if (kind === 'bird') { save.owned.push(item.id); save.selected = item.id; }
+  else { save.ownedScenes.push(item.id); save.scene = item.id; ambient = []; }
+  persist(); SFX.buy();
+  shopMsg = { text: `${item.name} comprado!`, color: '#7be26a', t: 90 };
+  modal = null;
+}
+function modalTap(pt) {
+  if (!pt) { modal = null; return; }
+  if (modal.canBuy) {
+    if (inside(pt, BTN_BUY)) confirmPurchase();
+    else if (inside(pt, BTN_CANCEL) || !inside(pt, MODAL)) { modal = null; SFX.swoosh(); }
+  } else if (inside(pt, BTN_MODAL_OK) || !inside(pt, MODAL)) { modal = null; SFX.swoosh(); }
 }
 window.addEventListener('keydown', e => {
   if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW' || e.code === 'Enter') { e.preventDefault(); input(null); }
-  if (e.code === 'Escape' && (state === STATE.SHOP || state === STATE.RANK || state === STATE.QUESTS)) goSplash();
+  if (e.code === 'Escape') { if (modal) modal = null; else if (state === STATE.SHOP || state === STATE.RANK || state === STATE.QUESTS) goSplash(); }
 });
 canvas.addEventListener('pointerdown', e => {
   e.preventDefault();
@@ -993,6 +1007,7 @@ function update() {
   for (const q of popups) { q.t--; q.y -= 0.6; }
   popups = popups.filter(q => q.t > 0);
   if (shopMsg && --shopMsg.t <= 0) shopMsg = null;
+  if (modal) modal.t++;
 
   // fogo do pássaro em uso (em todas as telas onde ele aparece)
   if (currentBird().fire && state !== STATE.SHOP && state !== STATE.RANK && state !== STATE.QUESTS) {
@@ -1259,6 +1274,47 @@ function drawRank() {
   pixelText(`Estrelas: ${STAR_STEPS.join(' / ')} pontos`, W / 2, H - 22, 9, '#ffffff', '#543847');
 }
 
+function drawModal() {
+  const { kind, item, canBuy } = modal;
+  const k = Math.min(1, modal.t / 8);                 // entrada: cresce de 80% a 100%
+  ctx.fillStyle = `rgba(0,0,0,${(0.55 * k).toFixed(2)})`; ctx.fillRect(0, 0, W, H);
+  ctx.save();
+  ctx.translate(W / 2, MODAL.y + MODAL.h / 2); ctx.scale(0.8 + 0.2 * k, 0.8 + 0.2 * k); ctx.translate(-W / 2, -(MODAL.y + MODAL.h / 2));
+  panel(MODAL.x, MODAL.y, MODAL.w, MODAL.h);
+  const rar = RARITY[item.rarity];
+  pixelText(canBuy ? 'CONFIRMAR COMPRA' : 'MOEDAS INSUFICIENTES', W / 2, MODAL.y + 12, 12, canBuy ? '#f5a623' : '#ff6060', '#543847');
+
+  // prévia do item
+  const py = MODAL.y + 36;
+  if (kind === 'bird') {
+    ctx.fillStyle = '#543847'; ctx.fillRect(W / 2 - 30, py, 60, 44);
+    ctx.fillStyle = '#4ec0ca'; ctx.fillRect(W / 2 - 28, py + 2, 56, 40);
+    ctx.drawImage(birdSprite(item, [0, 1, 2, 1][bird.frame]), W / 2 - BIRD_W / 2, py + 10);
+  } else {
+    const a = sceneAssets(item);
+    ctx.fillStyle = '#543847'; ctx.fillRect(W / 2 - 40, py, 80, 44);
+    ctx.drawImage(a.bg, 0, 100, W, GROUND_Y - 100, W / 2 - 38, py + 2, 76, 32);
+    ctx.drawImage(a.ground, 0, 0, W, 30, W / 2 - 38, py + 34, 76, 8);
+  }
+  pixelText(item.name, W / 2, py + 50, 13, '#543847', '#f5f0c0');
+  pixelText(rar.label, W / 2, py + 68, 8, rar.color, '#543847');
+
+  // preço e saldo
+  const ly = py + 84;
+  drawCoin(W / 2 - 46, ly + 7, true);
+  pixelText('Preco: ' + item.price, W / 2 - 34, ly, 11, '#543847', '#f5f0c0', 'left');
+  if (canBuy) pixelText(`Sobram ${save.coins - item.price} moedas`, W / 2, ly + 18, 9, '#3a9a2a', '#f5f0c0');
+  else pixelText(`Faltam ${item.price - save.coins} moedas`, W / 2, ly + 18, 9, '#d02020', '#f5f0c0');
+
+  if (canBuy) {
+    drawButton(BTN_BUY, 'COMPRAR', '#4cc07a', '#9ae8b4', '#2a8a4e', 12);
+    drawButton(BTN_CANCEL, 'CANCELAR', '#e05a4a', '#ffa090', '#a03020', 12);
+  } else {
+    drawButton(BTN_MODAL_OK, 'OK', '#6aa8ff', '#a8ccff', '#3a70c0', 12);
+  }
+  ctx.restore();
+}
+
 function drawShop() {
   ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(0, 0, W, H);
   drawButton(BTN_BACK, 'VOLTAR', '#6aa8ff', '#a8ccff', '#3a70c0', 11);
@@ -1268,7 +1324,7 @@ function drawShop() {
   drawButton(TAB_BIRDS,  'PASSAROS', ...(shopTab === 'birds'  ? on : off), 10);
   drawButton(TAB_SCENES, 'CENARIOS', ...(shopTab === 'scenes' ? on : off), 10);
 
-  if (shopTab === 'scenes') { drawSceneShop(); return; }
+  if (shopTab === 'scenes') { drawSceneShop(); drawShopOverlay(); return; }
   for (let i = 0; i < BIRDS.length; i++) {
     const def = BIRDS[i], r = shopCell(i), rar = RARITY[def.rarity];
     const owned = save.owned.includes(def.id), sel = save.selected === def.id;
@@ -1290,12 +1346,18 @@ function drawShop() {
       pixelText(String(def.price), r.x + r.w / 2 - 6, r.y + 61, 10, save.coins >= def.price ? '#ffe060' : '#ff9090', '#543847', 'left');
     }
   }
+  drawShopOverlay();
+}
+
+// mensagem de rodapé e popup de compra, por cima de qualquer aba da loja
+function drawShopOverlay() {
+  pixelText('Pegue moedas nos canos para comprar', W / 2, H - 22, 9, '#ffffff', '#543847');
   if (shopMsg) {
     ctx.globalAlpha = Math.min(1, shopMsg.t / 20);
     pixelText(shopMsg.text, W / 2, H - 42, 13, shopMsg.color, '#543847');
     ctx.globalAlpha = 1;
   }
-  pixelText('Pegue moedas nos canos para comprar', W / 2, H - 22, 9, '#ffffff', '#543847');
+  if (modal) drawModal();
 }
 
 function draw() {
