@@ -195,6 +195,44 @@ const DECO = {
     g.fillRect(9*s, 6*s, 1*s, 1*s); g.fillRect(13*s, 5*s, 1*s, 1*s); g.fillRect(8*s, 13*s, 1*s, 1*s); g.fillRect(15*s, 9*s, 1*s, 1*s);
     g.fillStyle = '#ffe680'; g.fillRect(11*s, 8*s, 1*s, 1*s);
   },
+  // ninja: bandana azul na testa com placa de metal e pontas voando atrás
+  ninja: (g, s) => {
+    g.fillStyle = '#1b1b2f';
+    g.fillRect(7*s, 3*s, 12*s, 3*s); g.fillRect(2*s, 3*s, 5*s, 1*s); g.fillRect(1*s, 4*s, 5*s, 1*s); g.fillRect(2*s, 5*s, 3*s, 1*s);
+    g.fillStyle = '#2f5fd8';
+    g.fillRect(8*s, 4*s, 10*s, 1*s); g.fillRect(3*s, 4*s, 3*s, 1*s); g.fillRect(2*s, 5*s, 2*s, 1*s); g.fillRect(4*s, 3*s, 2*s, 1*s);
+    g.fillStyle = '#c8d0e0'; g.fillRect(11*s, 4*s, 4*s, 1*s);           // placa de metal (sem símbolo)
+    g.fillStyle = '#1b1b2f'; g.fillRect(11*s, 3*s, 4*s, 1*s); g.fillRect(11*s, 5*s, 4*s, 1*s);
+    // faixa vermelha no peito
+    g.fillStyle = '#c02020'; g.fillRect(8*s, 12*s, 8*s, 1*s);
+  },
+  // pirata: chapéu tricorne preto com faixa vermelha e tapa-olho
+  pirate: (g, s) => {
+    g.fillStyle = '#1b1b2f';
+    g.fillRect(5*s, 3*s, 15*s, 3*s); g.fillRect(7*s, 1*s, 10*s, 2*s); g.fillRect(9*s, 0, 6*s, 1*s);
+    g.fillRect(4*s, 4*s, 1*s, 1*s); g.fillRect(20*s, 4*s, 1*s, 1*s);
+    g.fillStyle = '#2a2a3a'; g.fillRect(8*s, 2*s, 8*s, 1*s); g.fillRect(10*s, 1*s, 4*s, 1*s);
+    g.fillStyle = '#c02020'; g.fillRect(6*s, 4*s, 13*s, 1*s);
+    g.fillStyle = '#ffd52e'; g.fillRect(19*s, 4*s, 1*s, 1*s);           // detalhe dourado
+    // tapa-olho
+    g.fillStyle = '#1b1b2f'; g.fillRect(17*s, 6*s, 4*s, 3*s); g.fillRect(14*s, 6*s, 3*s, 1*s);
+    // brinco
+    g.fillStyle = '#ffd52e'; g.fillRect(15*s, 9*s, 1*s, 2*s);
+  },
+  // guerreiro: cabelo dourado espetado e faixa azul na cintura
+  warrior: (g, s) => {
+    g.fillStyle = '#1b1b2f';
+    g.fillRect(5*s, 2*s, 2*s, 1*s); g.fillRect(4*s, 3*s, 3*s, 1*s); g.fillRect(6*s, 0, 2*s, 1*s); g.fillRect(6*s, 1*s, 3*s, 1*s);
+    g.fillRect(9*s, -1*s, 2*s, 1*s); g.fillRect(12*s, -1*s, 2*s, 1*s); g.fillRect(15*s, 0, 2*s, 1*s); g.fillRect(16*s, 1*s, 2*s, 1*s);
+    g.fillRect(7*s, 2*s, 12*s, 1*s); g.fillRect(6*s, 3*s, 14*s, 1*s);
+    g.fillStyle = '#ffd52e';
+    g.fillRect(7*s, 1*s, 1*s, 1*s); g.fillRect(6*s, 2*s, 1*s, 1*s); g.fillRect(5*s, 3*s, 2*s, 1*s);
+    g.fillRect(9*s, 0, 2*s, 2*s); g.fillRect(12*s, 0, 2*s, 2*s); g.fillRect(15*s, 1*s, 2*s, 1*s); g.fillRect(16*s, 2*s, 1*s, 1*s);
+    g.fillRect(8*s, 2*s, 10*s, 1*s); g.fillRect(7*s, 3*s, 12*s, 1*s);
+    g.fillStyle = '#fff2a0'; g.fillRect(9*s, 1*s, 1*s, 1*s); g.fillRect(12*s, 1*s, 1*s, 1*s);
+    // faixa azul na cintura
+    g.fillStyle = '#2f5fd8'; g.fillRect(7*s, 12*s, 9*s, 1*s); g.fillRect(8*s, 13*s, 6*s, 1*s);
+  },
   // coroa dourada no alto da cabeça (por cima do topete)
   crown: (g, s) => {
     g.fillStyle = '#1b1b2f';
@@ -239,6 +277,10 @@ const BIRDS = [
   { id: 'dourado',  name: 'Dourado',   rarity: 'lendario', price: 350, pal: pal('#ffcf2e', '#fff2a0', '#fff8d0', '#e04020', { c: '#ffd52e' }), deco: 'crown' },
   { id: 'arcoiris', name: 'Arco-iris', rarity: 'lendario', price: 600, rainbow: true, pal: pal('#ff4040', '#ffa0a0', '#ffffff') },
   { id: 'chamas',   name: 'Em Chamas', rarity: 'lendario', price: 450, fire: true, pal: pal('#4a2a1a', '#7a4a2a', '#8a4a20', '#ffa020', { w: '#ffe0a0', c: '#ff6a20' }) },
+  // Série "heróis": inspirados em arquétipos de anime (ninja, pirata, guerreiro), desenhos próprios
+  { id: 'shinobi',  name: 'Shinobi',   rarity: 'epico',    price: 280, pal: pal('#ff8c2a', '#ffc070', '#ffe4c0', '#ffd23a', { c: '#ff8c2a' }), deco: 'ninja' },
+  { id: 'corsario', name: 'Corsario',  rarity: 'epico',    price: 280, pal: pal('#e84040', '#ff9a90', '#ffd8c8', '#ffb020', { c: '#1b1b2f' }), deco: 'pirate' },
+  { id: 'guerreiro',name: 'Guerreiro', rarity: 'lendario', price: 550, pal: pal('#ff8c2a', '#ffc070', '#ffe4c0', '#ff9a2e', { c: '#ffd52e' }), deco: 'warrior', fire: true, fireColors: ['#ffffff', '#fff6b0', '#ffe040', '#ffb000', 'rgba(255,200,80,'] },
 ];
 // Desbloqueio para demonstração (fica vazio na versão normal)
 const DEMO_UNLOCK = [];
@@ -266,6 +308,7 @@ function birdSprite(def, frame) {
   return def.frames[frame];
 }
 window.__birdSprite = BIRDS[0].frames[1]; // usado por ferramentas externas (geração de ícone)
+window.__birds = BIRDS;
 
 // ---------------------------------------------------------------------------
 // Moeda (3 quadros de giro)
@@ -617,7 +660,7 @@ const GLOBAL_QUESTS = [
   { id: 'games100',  text: 'Jogue 100 partidas',          stat: 'games',      goal: 100,  reward: 80 },
   { id: 'birds3',    text: 'Tenha 3 passaros',            stat: 'birdsOwned', goal: 3,    reward: 40 },
   { id: 'birds7',    text: 'Tenha 7 passaros',            stat: 'birdsOwned', goal: 7,    reward: 120 },
-  { id: 'birds13',   text: 'Tenha todos os passaros',     stat: 'birdsOwned', goal: 13,   reward: 500 },
+  { id: 'birds13',   text: 'Tenha todos os passaros',     stat: 'birdsOwned', goal: 16,   reward: 500 },
   { id: 'scenes3',   text: 'Tenha 3 cenarios',            stat: 'scenesOwned',goal: 3,    reward: 40 },
   { id: 'scenes9',   text: 'Tenha todos os cenarios',     stat: 'scenesOwned',goal: 9,    reward: 500 },
   { id: 'stars10',   text: 'Some 10 estrelas',            stat: 'stars',      goal: 10,   reward: 100 },
@@ -901,15 +944,16 @@ function updateFire(list) {
   for (let i = list.length - 1; i >= 0; i--) if (list[i].life <= 0) list.splice(i, 1);
 }
 
-function drawFire(list) {
+const FIRE_COLORS = ['#fff6c0', '#ffd23a', '#ff7a1c', '#d42a10', 'rgba(70,60,60,'];
+function drawFire(list, colors = FIRE_COLORS) {
   for (const p of list) {
     const t = p.life / p.max;                 // 1 = recém-nascida, 0 = apagando
     let color, size = Math.max(1, Math.round(p.size * (0.4 + t * 0.8)));
-    if (t > 0.8)      color = '#fff6c0';
-    else if (t > 0.6) color = '#ffd23a';
-    else if (t > 0.4) color = '#ff7a1c';
-    else if (t > 0.2) color = '#d42a10';
-    else { color = 'rgba(70,60,60,' + (t * 2.5).toFixed(2) + ')'; size += 1; } // fumaça
+    if (t > 0.8)      color = colors[0];
+    else if (t > 0.6) color = colors[1];
+    else if (t > 0.4) color = colors[2];
+    else if (t > 0.2) color = colors[3];
+    else { color = colors[4] + (t * 2.5).toFixed(2) + ')'; size += 1; } // fumaça / brilho final
     ctx.fillStyle = color;
     ctx.fillRect(Math.round(p.x - size / 2), Math.round(p.y - size / 2), size, size);
   }
@@ -1072,7 +1116,7 @@ const TAB_Q = [
   { x: 146, y: 40, w: 66, h: 22, id: 'scenes', label: 'CENARIOS' },
   { x: 216, y: 40, w: 66, h: 22, id: 'global', label: 'GERAIS' },
 ];
-const RANK_ROW_H = 26, RANK_Y0 = 70;
+const RANK_ROW_H = 23, RANK_Y0 = 70;
 const BTN_BACK  = { x: 8, y: 8, w: 64, h: 26 };
 const TAB_BIRDS  = { x: W / 2 - 92, y: 40, w: 90, h: 22 };
 const TAB_SCENES = { x: W / 2 + 2,  y: 40, w: 90, h: 22 };
@@ -1080,7 +1124,7 @@ const SCENE_COLS = 2, SCENE_CELL_W = 130, SCENE_CELL_H = 74, SCENE_X0 = (W - SCE
 function sceneCell(i) {
   return { x: SCENE_X0 + (i % SCENE_COLS) * SCENE_CELL_W + 3, y: SCENE_Y0 + Math.floor(i / SCENE_COLS) * SCENE_CELL_H + 3, w: SCENE_CELL_W - 6, h: SCENE_CELL_H - 6 };
 }
-const SHOP_COLS = 3, SHOP_CELL_W = 88, SHOP_CELL_H = 80, SHOP_X0 = (W - SHOP_COLS * SHOP_CELL_W) / 2, SHOP_Y0 = 68;
+const SHOP_COLS = 4, SHOP_CELL_W = 70, SHOP_CELL_H = 78, SHOP_X0 = (W - SHOP_COLS * SHOP_CELL_W) / 2, SHOP_Y0 = 66;
 function shopCell(i) {
   return { x: SHOP_X0 + (i % SHOP_COLS) * SHOP_CELL_W + 3, y: SHOP_Y0 + Math.floor(i / SHOP_COLS) * SHOP_CELL_H + 3, w: SHOP_CELL_W - 6, h: SHOP_CELL_H - 6 };
 }
@@ -1303,14 +1347,16 @@ function update() {
   if (state !== STATE.PAUSED) updateAmbient(currentScene(), state === STATE.PLAY ? speed() : (state === STATE.DEAD || state === STATE.RESUME) ? 0 : PIPE_SPEED);
   // prévia da loja
   if (state === STATE.SHOP) {
-    const i = BIRDS.findIndex(b => b.fire);
-    if (i >= 0) {
+    // cada pássaro com fogo tem a própria lista de partículas na prévia
+    BIRDS.forEach((b, i) => {
+      if (!b.fire) return;
+      if (!b.shopFire) b.shopFire = [];
       const r = shopCell(i);
-      const pb = { x: r.x + r.w / 2 - BIRD_W / 2, y: r.y + 11, rot: 0, vy: 0 };
-      emitFire(shopFire, pb, 0.6, 0.5);
-    }
-    updateFire(shopFire);
-  } else shopFire = [];
+      const pb = { x: r.x + r.w / 2 - BIRD_W / 2, y: r.y + 10, rot: 0, vy: 0 };
+      emitFire(b.shopFire, pb, 0.6, 0.5);
+      updateFire(b.shopFire);
+    });
+  } else for (const b of BIRDS) b.shopFire = [];
 
   switch (state) {
     case STATE.SPLASH:
@@ -1401,7 +1447,7 @@ function drawCoins() {
 
 function drawBird(def = currentBird(), b = bird) {
   const f = [0, 1, 2, 1][b.frame];
-  if (def.fire) drawFire(b === bird ? fire : shopFire);
+  if (def.fire) drawFire(b === bird ? fire : (def.shopFire || []), def.fireColors);
   if (b === bird && (shieldOn || invuln > 0)) {
     const cx = b.x + BIRD_W / 2, cy = b.y + BIRD_H / 2, r = 22 + Math.sin(frames / 5) * 1.5;
     ctx.fillStyle = shieldOn ? 'rgba(74,168,255,0.25)' : `rgba(255,255,255,${(invuln % 8 < 4 ? 0.25 : 0.05).toFixed(2)})`;
@@ -1524,7 +1570,7 @@ function drawQuests() {
 
   const isBirds = questTab === 'birds';
   const list = isBirds ? BIRDS : SCENES, table = isBirds ? save.birdBest : save.sceneBest, pre = isBirds ? 'b:' : 's:';
-  const rowH = 26;
+  const rowH = 23;
   panel(px, y0 - 6, pw, list.length * rowH + 12);
   list.forEach((it, i) => {
     const y = y0 + i * rowH, rec = table[it.id] || 0;
@@ -1660,18 +1706,18 @@ function drawShop() {
     ctx.fillStyle = sel ? '#ffffff' : '#543847'; ctx.fillRect(r.x - 2, r.y - 2, r.w + 4, r.h + 4);
     ctx.fillStyle = rar.color; ctx.fillRect(r.x, r.y, r.w, r.h);
     ctx.fillStyle = owned ? '#f5f0c0' : '#ded895'; ctx.fillRect(r.x + 3, r.y + 3, r.w - 6, r.h - 6);
-    pixelText(rar.label, r.x + r.w / 2, r.y + 4, 8, rar.color, '#543847');
-    const preview = { x: r.x + r.w / 2 - BIRD_W / 2, y: r.y + 11 + (sel ? Math.sin(frames / 8) * 2 : 0), rot: 0, frame: bird.frame };
+    pixelText(rar.label, r.x + r.w / 2, r.y + 3, 8, rar.color, '#543847');
+    const preview = { x: r.x + r.w / 2 - BIRD_W / 2, y: r.y + 10 + (sel ? Math.sin(frames / 8) * 2 : 0), rot: 0, frame: bird.frame };
     if (!owned) ctx.globalAlpha = 0.55;
     drawBird(def, preview);
     ctx.globalAlpha = 1;
-    pixelText(def.name, r.x + r.w / 2, r.y + 41, 10, '#543847', '#f5f0c0');
-    drawStars(r.x + r.w / 2 - 20, r.y + 53, starsFor(save.birdBest[def.id] || 0), 8);
-    if (sel) pixelText('EM USO', r.x + r.w / 2, r.y + 61, 9, '#ffffff', '#3a9a2a');
-    else if (owned) pixelText('USAR', r.x + r.w / 2, r.y + 61, 9, '#ffffff', '#543847');
+    pixelText(def.name, r.x + r.w / 2, r.y + 44, 9, '#543847', '#f5f0c0');
+    drawStars(r.x + r.w / 2 - 20, r.y + 54, starsFor(save.birdBest[def.id] || 0), 8);
+    if (sel) pixelText('EM USO', r.x + r.w / 2, r.y + 63, 8, '#ffffff', '#3a9a2a');
+    else if (owned) pixelText('USAR', r.x + r.w / 2, r.y + 63, 8, '#ffffff', '#543847');
     else {
-      drawCoin(r.x + r.w / 2 - 16, r.y + 67, false);
-      pixelText(String(def.price), r.x + r.w / 2 - 6, r.y + 61, 10, save.coins >= def.price ? '#ffe060' : '#ff9090', '#543847', 'left');
+      drawCoin(r.x + r.w / 2 - 14, r.y + 68, false);
+      pixelText(String(def.price), r.x + r.w / 2 - 6, r.y + 63, 9, save.coins >= def.price ? '#ffe060' : '#ff9090', '#543847', 'left');
     }
   }
   drawShopOverlay();
