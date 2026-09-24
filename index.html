@@ -861,6 +861,64 @@ function updateDaily(won) {
 function dailyDone() { ensureDaily(); return save.daily.quests.filter(q => q.done).length; }
 function hoursToMidnight() { const d = new Date(); return Math.max(1, Math.ceil((24 * 60 - d.getHours() * 60 - d.getMinutes()) / 60)); }
 
+// ---------------------------------------------------------------------------
+// XP e níveis: toda partida dá XP; subir de nível paga moedas e, em alguns
+// níveis, libera um pássaro ou cenário de graça.
+// ---------------------------------------------------------------------------
+function xpNeeded(level) { return 100 + (level - 1) * 60; }   // XP para sair do nível L
+function levelInfo(xp) {
+  let level = 1, rest = xp;
+  while (rest >= xpNeeded(level) && level < 99) { rest -= xpNeeded(level); level++; }
+  return { level, into: rest, need: xpNeeded(level) };
+}
+function xpForRun() {
+  const medal = score >= 40 ? 80 : score >= 30 ? 50 : score >= 20 ? 30 : score >= 10 ? 15 : 0;
+  return 15 + score * 10 + runCoins * 5 + medal;
+}
+const LEVEL_REWARDS = {
+  2:  { bird: 'amarelo' },
+  3:  { bird: 'verde' },
+  4:  { scene: 'noite' },
+  5:  { bird: 'neve' },
+  6:  { scene: 'por-do-sol' },
+  8:  { bird: 'gelo' },
+  10: { scene: 'deserto' },
+  12: { bird: 'noturno' },
+  14: { scene: 'neve' },
+  16: { bird: 'samurai' },
+  18: { scene: 'espaco' },
+  20: { bird: 'dourado' },
+  22: { scene: 'guerra' },
+  25: { bird: 'feiticeira' },
+  28: { scene: 'vulcao' },
+  30: { bird: 'guerreiro' },
+  35: { scene: 'neon' },
+  40: { bird: 'arcoiris' },
+};
+function rewardName(r) {
+  if (r.bird) { const b = BIRDS.find(x => x.id === r.bird); return b ? b.name : ''; }
+  const sc = SCENES.find(x => x.id === r.scene); return sc ? 'cenario ' + sc.name : '';
+}
+function nextLevelReward(level) {
+  for (let l = level + 1; l <= 99; l++) if (LEVEL_REWARDS[l]) return { level: l, name: rewardName(LEVEL_REWARDS[l]) };
+  return null;
+}
+// aplica XP da partida; devolve resumo para o painel de fim de jogo
+function gainXp(amount) {
+  const before = levelInfo(save.xp).level;
+  save.xp += amount;
+  const after = levelInfo(save.xp).level;
+  const res = { amount, from: before, to: after, coins: 0, items: [] };
+  for (let l = before + 1; l <= after; l++) {
+    res.coins += l * 25;
+    const r = LEVEL_REWARDS[l];
+    if (r && r.bird && !save.owned.includes(r.bird)) { save.owned.push(r.bird); res.items.push(rewardName(r)); }
+    if (r && r.scene && !save.ownedScenes.includes(r.scene)) { save.ownedScenes.push(r.scene); res.items.push(rewardName(r)); }
+  }
+  save.coins += res.coins;
+  return res;
+}
+
 function claimQuests() {
   const won = [];
   const claim = (key, text, reward) => { if (save.claimed[key]) return; save.claimed[key] = 1; save.coins += reward; won.push({ text, reward }); };
@@ -891,11 +949,43 @@ function medal(x, y, kind) {
 // Som (sintetizado via WebAudio, sem arquivos)
 // ---------------------------------------------------------------------------
 let audioCtx = null;
+let audioUnlocked = false, audioToast = 0, silentEl = null;
 function audio() {
   if (!audioCtx) { try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
-  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  if (audioCtx && audioCtx.state !== 'running') audioCtx.resume().catch(() => {});
   return audioCtx;
 }
+// Chamado dentro de um gesto do usuário (toque/tecla). Faz três coisas:
+//  1. cria/retoma o AudioContext (navegadores só liberam som após um gesto);
+//  2. toca um áudio mudo por um <audio> em loop: no iPhone isso muda a sessão
+//     de áudio para o canal de mídia, então o jogo toca mesmo com a chave
+//     lateral no modo silencioso;
+//  3. toca um "tick" inaudível no WebAudio para destravar de vez.
+function unlockAudio() {
+  const a = audio();
+  if (!silentEl) {
+    try {
+      // WAV de 0,1 s em silêncio, gerado aqui mesmo (sem arquivo)
+      const rate = 8000, n = rate / 10, buf = new ArrayBuffer(44 + n), v = new DataView(buf);
+      const str = (o, t) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
+      str(0, 'RIFF'); v.setUint32(4, 36 + n, true); str(8, 'WAVE'); str(12, 'fmt '); v.setUint32(16, 16, true);
+      v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, rate, true); v.setUint32(28, rate, true);
+      v.setUint16(32, 1, true); v.setUint16(34, 8, true); str(36, 'data'); v.setUint32(40, n, true);
+      for (let i = 0; i < n; i++) v.setUint8(44 + i, 128);
+      silentEl = new Audio(URL.createObjectURL(new Blob([buf], { type: 'audio/wav' })));
+      silentEl.loop = true; silentEl.volume = 0.01; silentEl.setAttribute('playsinline', '');
+    } catch (e) {}
+  }
+  if (silentEl) silentEl.play().catch(() => {});
+  if (a) {
+    try { const o = a.createOscillator(), g = a.createGain(); g.gain.value = 0.0001; o.connect(g); g.connect(a.destination); o.start(); o.stop(a.currentTime + 0.05); } catch (e) {}
+    if (!audioUnlocked && a.state === 'running') { audioUnlocked = true; audioToast = 120; syncMusic(); }
+    else if (!audioUnlocked) a.resume().then(() => { if (!audioUnlocked) { audioUnlocked = true; audioToast = 120; syncMusic(); } }).catch(() => {});
+  }
+}
+// iOS pode "interromper" o contexto (ligação, troca de app): retoma ao voltar
+document.addEventListener('visibilitychange', () => { if (!document.hidden && audioCtx) audioCtx.resume().catch(() => {}); });
+for (const ev of ['touchend', 'mousedown', 'keydown']) window.addEventListener(ev, unlockAudio, { passive: true });
 function tone(freqFrom, freqTo, dur, type = 'square', vol = 0.12, delay = 0) {
   if (!save.sound) return;
   const a = audio(); if (!a) return;
@@ -961,7 +1051,7 @@ function musicGain() {
   return music.gain;
 }
 function playNote(freq, t, dur, type, vol) {
-  const a = audioCtx, g = musicGain(); if (!a || !g || freq === null) return;
+  const a = audioCtx, g = musicGain(); if (!a || !g || freq === null || a.state !== 'running') return;
   const o = a.createOscillator(), e = a.createGain();
   o.type = type; o.frequency.value = freq;
   e.gain.setValueAtTime(vol, t);
@@ -973,6 +1063,7 @@ function playNote(freq, t, dur, type, vol) {
 function musicTick() {
   const a = audioCtx, tr = MUSIC[music.track];
   if (!a || !tr || !save.music) return;
+  if (a.state !== 'running') { music.nextTime = a.currentTime + 0.05; return; }
   const tempo = music.track === 'play' ? tr.bpm * (speed() / PIPE_SPEED) : tr.bpm;
   const stepDur = 60 / tempo / 2;
   while (music.nextTime < a.currentTime + 0.12) {
@@ -1082,7 +1173,7 @@ let shopFire = [];    // chamas da prévia na loja
 // ---------------------------------------------------------------------------
 // Dados salvos (recorde, moedas, pássaros comprados, pássaro escolhido)
 // ---------------------------------------------------------------------------
-const save = { best: 0, coins: 0, owned: ['azul'], selected: 'azul', ownedScenes: ['dia'], scene: 'dia', birdBest: {}, sceneBest: {}, claimed: {}, stats: { totalPipes: 0, totalCoins: 0, games: 0 }, sound: true, music: true };
+const save = { best: 0, coins: 0, owned: ['azul'], selected: 'azul', ownedScenes: ['dia'], scene: 'dia', birdBest: {}, sceneBest: {}, claimed: {}, stats: { totalPipes: 0, totalCoins: 0, games: 0 }, sound: true, music: true, xp: 0 };
 try {
   const raw = JSON.parse(localStorage.getItem('skyhop-save') || localStorage.getItem('flappy-save') || 'null');
   if (raw) Object.assign(save, raw);
@@ -1099,6 +1190,7 @@ if (!save.sceneBest) save.sceneBest = {};
 if (!save.claimed) save.claimed = {};
 if (!save.stats) save.stats = { totalPipes: 0, totalCoins: 0, games: 0 };
 if (save.sound === undefined) save.sound = true;
+if (typeof save.xp !== 'number') save.xp = 0;
 if (save.music === undefined) save.music = true;
 if (!BIRDS.some(b => b.id === save.selected)) save.selected = 'azul';
 function persist() { try { localStorage.setItem('skyhop-save', JSON.stringify(save)); } catch (e) {} }
@@ -1112,6 +1204,7 @@ let state = STATE.SPLASH;
 let frames = 0;
 let bird, pipes, score, groundX, deadTimer, panelY, flashAlpha, newBest, newStar = false;
 let questsWon = [], questTotal = 0, questTab = 'daily';
+let xpRes = null;               // resultado de XP da última partida
 let shake = 0;                  // tremor de tela (frames restantes)
 let sparks = [];                // faíscas ao pegar moeda
 let resumeTimer = 0;            // contagem regressiva ao voltar da pausa
@@ -1193,6 +1286,7 @@ function die() {
   if (score > (save.sceneBest[sid] || 0)) save.sceneBest[sid] = score;
   newStar = starsFor(save.birdBest[bid]) + starsFor(save.sceneBest[sid]) > oldStars;
   save.stats.games++;
+  xpRes = gainXp(xpForRun());
   questsWon = claimQuests();
   updateDaily(questsWon);
   questTotal = questsWon.reduce((a, q) => a + q.reward, 0);
@@ -1333,6 +1427,7 @@ window.addEventListener('keydown', e => {
 });
 canvas.addEventListener('pointerdown', e => {
   e.preventDefault();
+  unlockAudio();
   const r = canvas.getBoundingClientRect();
   input({ x: (e.clientX - r.left) * W / r.width, y: (e.clientY - r.top) * H / r.height });
 });
@@ -1449,6 +1544,7 @@ function update() {
   if (shopMsg && --shopMsg.t <= 0) shopMsg = null;
   if (modal) modal.t++;
   if (shake > 0) shake--;
+  if (audioToast > 0) audioToast--;
   for (const q of sparks) { q.x += q.vx; q.y += q.vy; q.vy += 0.15; q.t--; }
   sparks = sparks.filter(q => q.t > 0);
   if (frames % 15 === 0) syncMusic();
@@ -1522,7 +1618,7 @@ function update() {
         if (bird.y > GROUND_Y - BIRD_H) bird.y = GROUND_Y - BIRD_H;
         bird.rot = Math.min(Math.PI / 2, bird.rot + 0.12);
       }
-      if (deadTimer > 30) panelY = Math.max(H / 2 - (questTotal > 0 ? 140 : 130), panelY - 14);
+      if (deadTimer > 30) panelY = Math.max(H / 2 - 150, panelY - 14);
       break;
   }
 }
@@ -1877,6 +1973,14 @@ function draw() {
   if (shake > 0) ctx.translate(Math.round(rnd(-1, 1) * shake * 0.4), Math.round(rnd(-1, 1) * shake * 0.4));
   drawScene(sc);
   ctx.restore();
+  if (audioToast > 0) {
+    ctx.globalAlpha = Math.min(1, audioToast / 30);
+    panel(W / 2 - 70, H - 70, 140, 26, '#4cc07a', '#1b1b2f', '#9ae8b4');
+    pixelText('SOM ATIVADO', W / 2, H - 62, 10, '#ffffff', '#1b1b2f');
+    ctx.globalAlpha = 1;
+  } else if (!audioUnlocked && state === STATE.SPLASH) {
+    pixelText('toque para ativar o som', W / 2, H - 14, 8, '#ffffff', '#543847');
+  }
 }
 
 function drawScene(sc) {
@@ -1898,6 +2002,14 @@ function drawScene(sc) {
     if (save.best > 0) {
       pixelText('RECORDE', W / 2, 50, 12, '#ffffff', '#543847');
       drawNumber(save.best, W / 2, 66, smallDigits, SMALL_DW);
+    }
+    {
+      const li = levelInfo(save.xp), nx = nextLevelReward(li.level);
+      pixelText('NIVEL ' + li.level, W / 2 - 46, 258, 11, '#ffffff', '#543847', 'right');
+      ctx.fillStyle = '#543847'; ctx.fillRect(W / 2 - 40, 259, 110, 10);
+      ctx.fillStyle = '#b070e8'; ctx.fillRect(W / 2 - 39, 260, Math.round(108 * li.into / li.need), 8);
+      pixelText(`${li.into}/${li.need}`, W / 2 + 15, 260, 7, '#ffffff', '#543847');
+      if (nx) pixelText(`Nivel ${nx.level}: ${nx.name}`, W / 2, 276, 8, '#f5f0c0', '#543847');
     }
     return;
   }
@@ -1958,7 +2070,8 @@ function drawScene(sc) {
     if (deadTimer > 30) {
       pixelText('Fim de jogo', W / 2, panelY - 60, 30, '#f5a623', '#543847');
       const px = W / 2 - 113, py = panelY;
-      panel(px, py, 226, questTotal > 0 ? 158 : 140);
+      const extra = 22 + (questTotal > 0 ? 18 : 0) + (xpRes && xpRes.to > xpRes.from ? 18 : 0);
+      panel(px, py, 226, 140 + extra);
       pixelText('MEDALHA', px + 60, py + 12, 12, '#f5a623', '#543847');
       pixelText('PLACAR', px + 176, py + 12, 12, '#f5a623', '#543847');
       drawNumber(score, px + 206, py + 30, bigDigits, BIG_DW, 'right');
@@ -1976,14 +2089,31 @@ function drawScene(sc) {
       drawCoin(px + 120, py + 114, true);
       pixelText('+' + runCoins, px + 132, py + 106, 14, '#ffffff', '#543847', 'left');
       pixelText('total ' + save.coins, px + 206, py + 110, 9, '#543847', '#f5f0c0', 'right');
+      let ry = py + 126;
       if (questTotal > 0) {
-        pixelText('DESAFIOS', px + 60, py + 126, 12, '#4cc07a', '#543847');
-        drawCoin(px + 120, py + 136, true);
-        pixelText('+' + questTotal, px + 132, py + 128, 14, '#ffe060', '#543847', 'left');
-        pixelText(questsWon.length + (questsWon.length === 1 ? ' meta' : ' metas'), px + 206, py + 132, 9, '#543847', '#f5f0c0', 'right');
+        pixelText('DESAFIOS', px + 60, ry, 12, '#4cc07a', '#543847');
+        drawCoin(px + 120, ry + 10, true);
+        pixelText('+' + questTotal, px + 132, ry + 2, 14, '#ffe060', '#543847', 'left');
+        pixelText(questsWon.length + (questsWon.length === 1 ? ' meta' : ' metas'), px + 206, ry + 6, 9, '#543847', '#f5f0c0', 'right');
+        ry += 18;
       }
-      if (newStar && deadTimer % 40 < 28) pixelText('NOVA ESTRELA!', W / 2, panelY - 26, 14, '#ffd52e', '#543847');
-      if (deadTimer > 60) drawButton({ x: W / 2 - 52, y: panelY + (questTotal > 0 ? 176 : 158), w: 104, h: 34 }, 'OK');
+      // XP e nível
+      if (xpRes) {
+        const li = levelInfo(save.xp);
+        pixelText('NIVEL ' + li.level, px + 60, ry, 12, '#b070e8', '#543847');
+        ctx.fillStyle = '#543847'; ctx.fillRect(px + 112, ry + 3, 70, 8);
+        ctx.fillStyle = '#b070e8'; ctx.fillRect(px + 113, ry + 4, Math.round(68 * li.into / li.need), 6);
+        pixelText('+' + xpRes.amount + 'xp', px + 206, ry + 2, 9, '#543847', '#f5f0c0', 'right');
+        ry += 18;
+        if (xpRes.to > xpRes.from) {
+          const txt = xpRes.items.length ? `+${xpRes.coins} moedas, ${xpRes.items.join(', ')}` : `+${xpRes.coins} moedas`;
+          pixelText(txt, W / 2, ry, 8, '#3a9a2a', '#f5f0c0');
+          ry += 18;
+        }
+      }
+      const banner = xpRes && xpRes.to > xpRes.from ? 'SUBIU DE NIVEL!' : newStar ? 'NOVA ESTRELA!' : null;
+      if (banner && deadTimer % 40 < 28) pixelText(banner, W / 2, panelY - 26, 14, '#ffd52e', '#543847');
+      if (deadTimer > 60) drawButton({ x: W / 2 - 52, y: py + 140 + extra + 8, w: 104, h: 34 }, 'OK');
     }
     if (flashAlpha > 0) {
       ctx.fillStyle = `rgba(255,255,255,${flashAlpha})`;
